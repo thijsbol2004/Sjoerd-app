@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sjoerd</title>
+
+<!-- PWA-koppeling: hierdoor kan de app op een telefoon "toegevoegd aan beginscherm" worden -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b3d2e">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Sjoerd</h1>
+  <nav class="tabs">
+    <button class="tab-knop actief" data-tab="spel">Scorebord</button>
+    <button class="tab-knop" data-tab="uitleg">Uitleg</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- TAB: SPEL -->
+  <section id="tab-spel" class="tab-inhoud actief">
+
+    <!-- SCHERM 1: spelers toevoegen -->
+    <section id="scherm-setup" class="scherm">
+      <h2>Nieuw spel</h2>
+      <p class="uitleg-tekst">Voer de namen van de spelers in (minimaal 2).</p>
+
+      <ul id="spelerslijst" class="spelerslijst"></ul>
+
+      <form id="form-speler-toevoegen" class="rij-formulier">
+        <input type="text" id="invoer-spelernaam" placeholder="Naam van speler" autocomplete="off" required>
+        <button type="submit" class="knop knop-secundair">+ Toevoegen</button>
+      </form>
+
+      <button id="knop-start-spel" class="knop knop-primair" disabled>Start spel</button>
+      <p id="setup-foutmelding" class="foutmelding" hidden></p>
+    </section>
+
+    <!-- SCHERM 2: scorebord + ronde invoeren -->
+    <section id="scherm-spel" class="scherm" hidden>
+
+      <div class="scorebord-kaart">
+        <h2>Stand</h2>
+        <table id="scorebord-tabel" class="scorebord-tabel">
+          <thead>
+            <tr><th>Speler</th><th>Punten</th></tr>
+          </thead>
+          <tbody id="scorebord-body"></tbody>
+        </table>
+        <p id="deler-info" class="deler-info"></p>
+        <p id="scorehouder-info" class="scorehouder-info"></p>
+      </div>
+
+      <div class="ronde-kaart">
+        <h2 id="ronde-titel">Ronde 1</h2>
+
+        <label for="select-sjoerd">Wie riep "Sjoerd"?</label>
+        <select id="select-sjoerd" required></select>
+
+        <div id="punten-invoer-lijst" class="punten-invoer-lijst"></div>
+
+        <p id="ronde-foutmelding" class="foutmelding" hidden></p>
+
+        <button id="knop-ronde-verwerken" class="knop knop-primair">Ronde verwerken</button>
+        <button id="knop-ronde-ongedaan" class="knop knop-tekst" disabled>Vorige ronde ongedaan maken</button>
+      </div>
+
+    </section>
+
+    <!-- SCHERM 3: spel afgelopen -->
+    <section id="scherm-gameover" class="scherm" hidden>
+      <h2>Spel afgelopen! 🎉</h2>
+      <p id="winnaar-tekst" class="winnaar-tekst"></p>
+      <table id="eindstand-tabel" class="scorebord-tabel">
+        <thead><tr><th>Speler</th><th>Eindtotaal</th></tr></thead>
+        <tbody id="eindstand-body"></tbody>
+      </table>
+      <button id="knop-nieuw-spel" class="knop knop-primair">Nieuw spel</button>
+    </section>
+
+  </section>
+
+  <!-- TAB: UITLEG -->
+  <section id="tab-uitleg" class="tab-inhoud">
+    <h2>Spelregels van Sjoerd</h2>
+
+    <p>Je speelt met een heel kaartspel, inclusief de jokers. Iedereen krijgt 5 kaarten in de hand. Het doel: zo min mogelijk punten in je hand hebben.</p>
+
+    <h3>Puntwaarde van de kaarten</h3>
+    <ul class="regel-lijst">
+      <li>2 t/m 9: eigen waarde (een 7 is dus 7 punten)</li>
+      <li>Boer, Vrouw, Heer, 10: allemaal 10 punten</li>
+      <li>Aas: 1 punt</li>
+      <li>Joker: 0 punten</li>
+    </ul>
+
+    <h3>Kaarten wegleggen</h3>
+    <p>Je mag een kaart wegleggen op de open wegleg-stapel en pakt daarna 1 kaart terug: óf de bovenste van de wegleg-stapel, óf een dichte kaart van de pakstapel.</p>
+    <p>Je mag ook een straatje (vanaf 2 kaarten, bijv. 5-6) of dubbele kaarten (bijv. twee 8'ens, of 9-boer) in één keer wegleggen. Ook dan pak je maar 1 kaart terug — leg je 3 kaarten weg, dan houd je nog maar 3 kaarten in je hand.</p>
+    <p>De joker mag als "wildcard" gebruikt worden om een straatje compleet te maken (bijv. boer, joker, heer — de joker fungeert dan als vrouw).</p>
+
+    <h3>"Sjoerd" roepen</h3>
+    <p>Een ronde eindigt zodra iemand "Sjoerd" roept. Dat mag alleen als je op dat moment <strong>7 punten of minder</strong> in je hand hebt. Het spel stopt gelijk en iedereen telt de punten in zijn hand.</p>
+
+    <ul class="regel-lijst">
+      <li>Heb je écht de laagste (of gelijk aan de laagste) punten van iedereen? Dan krijg je <strong>0 punten</strong> voor die ronde.</li>
+      <li>Heeft iemand anders minder punten dan jij, terwijl jij toch "Sjoerd" riep? Dan krijg jij je handpunten <strong>+ 15 strafpunten</strong> — en degene die écht het laagst zat krijgt 0 punten.</li>
+      <li>Alle overige spelers tellen gewoon hun eigen handpunten bij hun totaal op.</li>
+    </ul>
+
+    <h3>Einde van het spel</h3>
+    <p>Je speelt door tot iemand 100 punten of meer heeft. Zodra dat gebeurt, stopt het hele spel direct. De winnaar is de speler met de <strong>laagste</strong> totaalscore.</p>
+
+    <h3>Wie deelt?</h3>
+    <p>Degene met de hoogste punten moet de volgende ronde schudden en delen. De speler links van de deler begint. Er ligt altijd één kaart open op tafel, ook bij de allereerste ronde.</p>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

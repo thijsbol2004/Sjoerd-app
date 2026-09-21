@@ -1,0 +1,250 @@
+/* Kleuren en basisinstellingen */
+:root {
+  --kleur-tafel: #0b3d2e;
+  --kleur-tafel-licht: #12523d;
+  --kleur-goud: #d4af37;
+  --kleur-tekst: #1c1c1c;
+  --kleur-achtergrond: #f6f3ec;
+  --kleur-kaart: #ffffff;
+  --kleur-rand: #e0dccf;
+  --kleur-fout: #b3261e;
+  --straal: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--kleur-achtergrond);
+  color: var(--kleur-tekst);
+  padding-bottom: 3rem;
+}
+
+/* Header met titel en tabs */
+.app-header {
+  background: var(--kleur-tafel);
+  color: white;
+  padding: 1.2rem 1rem 0 1rem;
+  border-bottom-left-radius: var(--straal);
+  border-bottom-right-radius: var(--straal);
+}
+
+.app-header h1 {
+  margin: 0 0 0.8rem 0;
+  font-size: 1.6rem;
+  letter-spacing: 0.02em;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tab-knop {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.7rem 0.5rem;
+  font-size: 1rem;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+
+.tab-knop.actief {
+  color: white;
+  border-bottom-color: var(--kleur-goud);
+  font-weight: 600;
+}
+
+main {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.tab-inhoud { display: none; }
+.tab-inhoud.actief { display: block; }
+
+.scherm[hidden] { display: none; }
+
+/* Kaarten (secties) */
+.scorebord-kaart, .ronde-kaart {
+  background: var(--kleur-kaart);
+  border: 1px solid var(--kleur-rand);
+  border-radius: var(--straal);
+  padding: 1.2rem;
+  margin-bottom: 1.2rem;
+}
+
+h2 { margin-top: 0; }
+
+/* Spelerslijst in setup-scherm */
+.spelerslijst {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+}
+
+.spelerslijst li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--kleur-rand);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.spelerslijst button {
+  background: none;
+  border: none;
+  color: var(--kleur-fout);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.rij-formulier {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.rij-formulier input {
+  flex: 1;
+}
+
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  font-size: 1rem;
+  border: 1px solid var(--kleur-rand);
+  border-radius: 10px;
+  background: white;
+  color: var(--kleur-tekst);
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin: 0.8rem 0 0.3rem 0;
+}
+
+/* Knoppen */
+.knop {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-size: 1.05rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 0.6rem;
+}
+
+.knop-primair {
+  background: var(--kleur-tafel);
+  color: white;
+  font-weight: 600;
+}
+
+.knop-primair:disabled {
+  background: #a9b9b3;
+  cursor: not-allowed;
+}
+
+.knop-secundair {
+  background: var(--kleur-tafel-licht);
+  color: white;
+  width: auto;
+  white-space: nowrap;
+}
+
+.knop-tekst {
+  background: none;
+  color: var(--kleur-tafel);
+  text-decoration: underline;
+}
+
+.knop-tekst:disabled {
+  color: #a9b9b3;
+  cursor: not-allowed;
+}
+
+/* Scorebord tabel */
+.scorebord-tabel {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.scorebord-tabel th, .scorebord-tabel td {
+  text-align: left;
+  padding: 0.5rem 0.3rem;
+  border-bottom: 1px solid var(--kleur-rand);
+}
+
+.scorebord-tabel th:last-child, .scorebord-tabel td:last-child {
+  text-align: right;
+}
+
+.rij-winnaar td {
+  font-weight: 700;
+  color: var(--kleur-tafel);
+}
+
+.deler-info, .scorehouder-info {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.6rem 0 0 0;
+}
+
+/* Ronde-invoer per speler */
+.punten-invoer-rij {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.6rem;
+}
+
+.punten-invoer-rij span {
+  flex: 1;
+}
+
+.punten-invoer-rij input {
+  width: 5.5rem;
+  text-align: center;
+}
+
+.foutmelding {
+  color: var(--kleur-fout);
+  background: #fdecea;
+  border: 1px solid #f4c7c3;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  margin: 0.8rem 0;
+}
+
+.winnaar-tekst {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--kleur-tafel);
+}
+
+/* Uitleg-tab */
+#tab-uitleg h3 {
+  color: var(--kleur-tafel);
+  margin-bottom: 0.3rem;
+}
+
+.regel-lijst {
+  padding-left: 1.2rem;
+}
+
+.regel-lijst li {
+  margin-bottom: 0.4rem;
+}
