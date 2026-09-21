@@ -1,7 +1,7 @@
 // Simpele service worker: cachet de app-bestanden zodat Sjoerd ook offline
 // werkt en op Android als "installeerbaar" wordt herkend.
 
-const CACHE_NAAM = "sjoerd-cache-v2";
+const CACHE_NAAM = "sjoerd-cache-v3";
 const BESTANDEN_OM_TE_CACHEN = [
   "./",
   "./index.html",
@@ -33,7 +33,14 @@ self.addEventListener("activate", (event) => {
 // Netwerk-eerst: haal bij internet altijd de nieuwste versie op (en werk de
 // cache bij), val alleen terug op de cache als er geen verbinding is. Zo loop
 // je nooit meer vast op een verouderde versie zolang je online bent.
+//
+// Aanvragen naar andere domeinen (Supabase, de supabase-js library via CDN)
+// laten we ongemoeid — die moeten altijd vers en direct naar het echte adres
+// gaan, niet via onze eigen cache.
 self.addEventListener("fetch", (event) => {
+  const isEigenDomein = new URL(event.request.url).origin === self.location.origin;
+  if (!isEigenDomein) return;
+
   event.respondWith(
     fetch(event.request)
       .then((netwerkResponse) => {

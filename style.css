@@ -175,6 +175,29 @@ label {
   margin-bottom: 1rem;
 }
 
+/* Kleine subtabjes, bijv. "Nieuwe groep" / "Ik heb een code" */
+.subtabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.subtab-knop {
+  flex: 1;
+  padding: 0.6rem;
+  border: 1px solid var(--kleur-rand);
+  border-radius: 10px;
+  background: white;
+  color: var(--kleur-tekst);
+  cursor: pointer;
+}
+
+.subtab-knop.actief {
+  background: var(--kleur-tafel);
+  color: white;
+  border-color: var(--kleur-tafel);
+}
+
 .knop-tekst {
   background: none;
   color: var(--kleur-tafel);

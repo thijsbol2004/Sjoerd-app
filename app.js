@@ -8,6 +8,18 @@ let scorehouder = null;   // naam van de speler die verloor in ronde 1
 let rondeSnapshots = [];  // kopieën van de status vóór elke ronde, voor "ongedaan maken"
 
 const LAATSTE_SPELERS_KEY = "sjoerdLaatsteSpelers"; // onthoudt de spelerslijst van het vorige spel
+const MIJN_NAAM_KEY = "sjoerdMijnNaam";             // eigen naam, voor persoonlijke statistieken
+const MIJN_GROEPEN_KEY = "sjoerdMijnGroepen";       // groepen die op dit toestel gebruikt zijn: [{code, naam}]
+
+// --- Supabase: gedeelde opslag van groepen en potjes-uitslagen ---
+// De "anon key" is een publieke sleutel, bedoeld om in client-code te staan.
+// Beveiliging loopt via database-regels (RLS), niet via het geheimhouden hiervan.
+const SUPABASE_URL = "https://fdomjtpirohnzggxtbne.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkb21qdHBpcm9obnpnZ3h0Ym5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwMDMzOTksImV4cCI6MjEwNTU3OTM5OX0.IQCeIYEU1kEM8RQ2Avjr8HosygN_m27nBnPrlzTyymc";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- Groepsstatus (in het geheugen tijdens deze sessie) ---
+let groepActief = null; // { code, naam } of null als "eenmalig" gekozen is
 
 // --- DOM-elementen ---
 const el = (id) => document.getElementById(id);
@@ -15,9 +27,44 @@ const el = (id) => document.getElementById(id);
 const tabKnoppen = document.querySelectorAll(".tab-knop");
 const tabInhouden = document.querySelectorAll(".tab-inhoud");
 
+const schermModus = el("scherm-modus");
+const schermGroep = el("scherm-groep");
+const schermMijnNaam = el("scherm-mijn-naam");
 const schermSetup = el("scherm-setup");
 const schermSpel = el("scherm-spel");
 const schermGameover = el("scherm-gameover");
+
+const knopModusEenmalig = el("knop-modus-eenmalig");
+const knopModusGroep = el("knop-modus-groep");
+
+const groepenlijstEl = el("groepenlijst");
+const groepLeegTekst = el("groep-leeg-tekst");
+const knopGroepToevoegenTonen = el("knop-groep-toevoegen-tonen");
+const groepToevoegenFormulier = el("groep-toevoegen-formulier");
+const knopSubtabNieuw = el("knop-subtab-nieuw");
+const knopSubtabCode = el("knop-subtab-code");
+const nieuweGroepInvoer = el("nieuwe-groep-invoer");
+const codeInvoer = el("code-invoer");
+const invoerGroepnaam = el("invoer-groepnaam");
+const invoerGroepcode = el("invoer-groepcode");
+const knopGroepAanmaken = el("knop-groep-aanmaken");
+const knopGroepJoinen = el("knop-groep-joinen");
+const groepFoutmelding = el("groep-foutmelding");
+const knopGroepTerug = el("knop-groep-terug");
+
+const invoerMijnNaam = el("invoer-mijn-naam");
+const knopMijnNaamOpslaan = el("knop-mijn-naam-opslaan");
+const mijnNaamFoutmelding = el("mijn-naam-foutmelding");
+
+const actieveGroepInfo = el("actieve-groep-info");
+
+const statsLadenTekst = el("stats-laden-tekst");
+const statsFoutTekst = el("stats-fout-tekst");
+const statsGeenGroepen = el("stats-geen-groepen");
+const statsInhoud = el("stats-inhoud");
+const selectStatsGroep = el("select-stats-groep");
+const statsGroepBody = el("stats-groep-body");
+const statsPersoonlijkBody = el("stats-persoonlijk-body");
 
 const spelerslijstEl = el("spelerslijst");
 const formSpelerToevoegen = el("form-speler-toevoegen");
@@ -40,14 +87,179 @@ const winnaarTekst = el("winnaar-tekst");
 const eindstandBody = el("eindstand-body");
 const knopNieuwSpel = el("knop-nieuw-spel");
 
-// ===== Tabs (Scorebord / Uitleg) =====
+// ===== Tabs (Scorebord / Statistieken / Uitleg) =====
 tabKnoppen.forEach((knop) => {
   knop.addEventListener("click", () => {
     tabKnoppen.forEach((k) => k.classList.remove("actief"));
     tabInhouden.forEach((t) => t.classList.remove("actief"));
     knop.classList.add("actief");
     el(`tab-${knop.dataset.tab}`).classList.add("actief");
+
+    if (knop.dataset.tab === "stats") {
+      laadStatistieken();
+    }
   });
+});
+
+// ===== Hulpfuncties: eigen naam en groepen (localStorage) =====
+function haalMijnNaamOp() {
+  return localStorage.getItem(MIJN_NAAM_KEY) || null;
+}
+
+function haalMijnGroepenOp() {
+  return JSON.parse(localStorage.getItem(MIJN_GROEPEN_KEY) || "[]");
+}
+
+function voegMijnGroepToe(groep) {
+  const groepen = haalMijnGroepenOp();
+  if (!groepen.some((g) => g.code === groep.code)) {
+    groepen.push(groep);
+    localStorage.setItem(MIJN_GROEPEN_KEY, JSON.stringify(groepen));
+  }
+}
+
+function genereerGroepscode() {
+  // Geen verwarrende tekens (0/O, 1/I/L)
+  const tekens = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += tekens[Math.floor(Math.random() * tekens.length)];
+  }
+  return code;
+}
+
+// ===== Scherm 0a: eenmalig of in een groep =====
+knopModusEenmalig.addEventListener("click", () => {
+  groepActief = null;
+  schermModus.hidden = true;
+  actieveGroepInfo.hidden = true;
+  schermSetup.hidden = false;
+});
+
+knopModusGroep.addEventListener("click", () => {
+  schermModus.hidden = true;
+  schermGroep.hidden = false;
+  renderGroepenlijst();
+});
+
+// ===== Scherm 0b: groep kiezen/aanmaken/joinen =====
+function renderGroepenlijst() {
+  const groepen = haalMijnGroepenOp();
+  groepenlijstEl.innerHTML = "";
+  groepLeegTekst.hidden = groepen.length > 0;
+
+  groepen.forEach((groep) => {
+    const li = document.createElement("li");
+    const knop = document.createElement("button");
+    knop.type = "button";
+    knop.className = "knop knop-tekst";
+    knop.textContent = groep.naam ? `${groep.naam} (${groep.code})` : groep.code;
+    knop.addEventListener("click", () => kiesGroep(groep));
+    li.appendChild(knop);
+    groepenlijstEl.appendChild(li);
+  });
+}
+
+function kiesGroep(groep) {
+  groepActief = groep;
+  groepFoutmelding.hidden = true;
+  groepToevoegenFormulier.hidden = true;
+  schermGroep.hidden = true;
+
+  if (!haalMijnNaamOp()) {
+    schermMijnNaam.hidden = false;
+  } else {
+    gaNaarSetup();
+  }
+}
+
+function gaNaarSetup() {
+  schermMijnNaam.hidden = true;
+  actieveGroepInfo.hidden = !groepActief;
+  actieveGroepInfo.textContent = groepActief
+    ? `Groep: ${groepActief.naam ? `${groepActief.naam} (${groepActief.code})` : groepActief.code}`
+    : "";
+  schermSetup.hidden = false;
+}
+
+knopGroepToevoegenTonen.addEventListener("click", () => {
+  groepToevoegenFormulier.hidden = false;
+});
+
+knopSubtabNieuw.addEventListener("click", () => {
+  knopSubtabNieuw.classList.add("actief");
+  knopSubtabCode.classList.remove("actief");
+  nieuweGroepInvoer.hidden = false;
+  codeInvoer.hidden = true;
+});
+
+knopSubtabCode.addEventListener("click", () => {
+  knopSubtabCode.classList.add("actief");
+  knopSubtabNieuw.classList.remove("actief");
+  codeInvoer.hidden = false;
+  nieuweGroepInvoer.hidden = true;
+});
+
+knopGroepAanmaken.addEventListener("click", async () => {
+  groepFoutmelding.hidden = true;
+  const naam = invoerGroepnaam.value.trim() || null;
+  const code = genereerGroepscode();
+
+  const { error } = await supabaseClient.from("groepen").insert({ code, naam });
+  if (error) {
+    groepFoutmelding.textContent = "Kon geen groep aanmaken. Controleer je internetverbinding en probeer opnieuw.";
+    groepFoutmelding.hidden = false;
+    return;
+  }
+
+  voegMijnGroepToe({ code, naam });
+  invoerGroepnaam.value = "";
+  kiesGroep({ code, naam });
+});
+
+knopGroepJoinen.addEventListener("click", async () => {
+  groepFoutmelding.hidden = true;
+  const code = invoerGroepcode.value.trim().toUpperCase();
+  if (!code) return;
+
+  const { data, error } = await supabaseClient.from("groepen").select("code, naam").eq("code", code).maybeSingle();
+  if (error) {
+    groepFoutmelding.textContent = "Kon niet zoeken. Controleer je internetverbinding en probeer opnieuw.";
+    groepFoutmelding.hidden = false;
+    return;
+  }
+  if (!data) {
+    groepFoutmelding.textContent = "Geen groep gevonden met deze code. Klopt de code?";
+    groepFoutmelding.hidden = false;
+    return;
+  }
+
+  voegMijnGroepToe(data);
+  invoerGroepcode.value = "";
+  kiesGroep(data);
+});
+
+knopGroepTerug.addEventListener("click", () => {
+  groepFoutmelding.hidden = true;
+  groepToevoegenFormulier.hidden = true;
+  schermGroep.hidden = true;
+  schermModus.hidden = false;
+});
+
+// ===== Scherm 0c: eigen naam instellen =====
+knopMijnNaamOpslaan.addEventListener("click", () => {
+  const naam = invoerMijnNaam.value.trim();
+  mijnNaamFoutmelding.hidden = true;
+
+  if (!naam) {
+    mijnNaamFoutmelding.textContent = "Vul je naam in.";
+    mijnNaamFoutmelding.hidden = false;
+    return;
+  }
+
+  localStorage.setItem(MIJN_NAAM_KEY, naam);
+  invoerMijnNaam.value = "";
+  gaNaarSetup();
 });
 
 // ===== Setup-scherm: spelers toevoegen/verwijderen =====
@@ -249,6 +461,22 @@ function toonSpelAfgelopen() {
   });
 
   opslaanGeschiedenis(winnaar.naam, spelers.map((s) => s.naam));
+
+  if (groepActief) {
+    opslaanPotjeInGroep(groepActief.code, winnaar.naam, spelers.map((s) => s.naam));
+  }
+}
+
+// ===== Potje-uitslag wegschrijven naar de groep (Supabase) =====
+async function opslaanPotjeInGroep(groepcode, winnaarNaam, alleSpelers) {
+  const { error } = await supabaseClient.from("potjes").insert({
+    groepcode,
+    winnaar: winnaarNaam,
+    spelers: alleSpelers,
+  });
+  if (error) {
+    winnaarTekst.textContent += " (let op: kon niet naar de groep worden gesynchroniseerd — controleer je internet)";
+  }
 }
 
 // ===== Geschiedenis (alleen winnaars, voor latere head-to-head-functie) =====
@@ -263,10 +491,110 @@ function opslaanGeschiedenis(winnaarNaam, alleSpelers) {
 }
 
 knopNieuwSpel.addEventListener("click", () => {
+  groepActief = null;
   schermGameover.hidden = true;
-  schermSetup.hidden = false;
+  schermModus.hidden = false;
   renderSpelerslijst(); // namen van vorig spel blijven staan, handig voor een volgende ronde
 });
+
+// ===== Statistieken-tab =====
+async function laadStatistieken() {
+  statsFoutTekst.hidden = true;
+  const mijnGroepen = haalMijnGroepenOp();
+
+  if (mijnGroepen.length === 0) {
+    statsGeenGroepen.hidden = false;
+    statsInhoud.hidden = true;
+    return;
+  }
+
+  statsGeenGroepen.hidden = true;
+  statsInhoud.hidden = true;
+  statsLadenTekst.hidden = false;
+
+  const codes = mijnGroepen.map((g) => g.code);
+  const { data: potjes, error } = await supabaseClient
+    .from("potjes")
+    .select("groepcode, winnaar, spelers, datum")
+    .in("groepcode", codes);
+
+  statsLadenTekst.hidden = true;
+
+  if (error) {
+    statsFoutTekst.textContent = "Kon statistieken niet ophalen. Controleer je internetverbinding.";
+    statsFoutTekst.hidden = false;
+    return;
+  }
+
+  statsInhoud.hidden = false;
+
+  selectStatsGroep.innerHTML = "";
+  mijnGroepen.forEach((groep) => {
+    const optie = document.createElement("option");
+    optie.value = groep.code;
+    optie.textContent = groep.naam ? `${groep.naam} (${groep.code})` : groep.code;
+    selectStatsGroep.appendChild(optie);
+  });
+
+  selectStatsGroep.onchange = () => renderGroepStatistieken(potjes, selectStatsGroep.value);
+  renderGroepStatistieken(potjes, selectStatsGroep.value);
+  renderPersoonlijkeStatistieken(potjes);
+}
+
+function renderGroepStatistieken(potjes, groepcode) {
+  const potjesInGroep = potjes.filter((p) => p.groepcode === groepcode);
+  const overwinningen = {};
+  potjesInGroep.forEach((p) => {
+    overwinningen[p.winnaar] = (overwinningen[p.winnaar] || 0) + 1;
+  });
+  const gesorteerd = Object.entries(overwinningen).sort((a, b) => b[1] - a[1]);
+
+  statsGroepBody.innerHTML = "";
+  if (gesorteerd.length === 0) {
+    statsGroepBody.innerHTML = "<tr><td colspan='2'>Nog geen potjes gespeeld in deze groep.</td></tr>";
+    return;
+  }
+  gesorteerd.forEach(([naam, aantal]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${naam}</td><td>${aantal}</td>`;
+    statsGroepBody.appendChild(tr);
+  });
+}
+
+function renderPersoonlijkeStatistieken(potjes) {
+  const mijnNaam = haalMijnNaamOp();
+  statsPersoonlijkBody.innerHTML = "";
+
+  if (!mijnNaam) {
+    statsPersoonlijkBody.innerHTML = "<tr><td colspan='3'>Nog geen naam ingesteld.</td></tr>";
+    return;
+  }
+
+  const mijnPotjes = potjes.filter((p) => p.spelers.includes(mijnNaam));
+  const tegenstanders = {};
+
+  mijnPotjes.forEach((p) => {
+    const ikWon = p.winnaar === mijnNaam;
+    p.spelers.forEach((speler) => {
+      if (speler === mijnNaam) return;
+      if (!tegenstanders[speler]) tegenstanders[speler] = { samen: 0, gewonnen: 0 };
+      tegenstanders[speler].samen += 1;
+      if (ikWon) tegenstanders[speler].gewonnen += 1;
+    });
+  });
+
+  const gesorteerd = Object.entries(tegenstanders).sort((a, b) => b[1].samen - a[1].samen);
+
+  if (gesorteerd.length === 0) {
+    statsPersoonlijkBody.innerHTML = "<tr><td colspan='3'>Nog geen potjes gespeeld.</td></tr>";
+    return;
+  }
+  gesorteerd.forEach(([naam, cijfers]) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${naam}</td><td>${cijfers.samen}</td><td>${cijfers.gewonnen}</td>`;
+    statsPersoonlijkBody.appendChild(tr);
+  });
+}
 
 // ===== Start =====
 renderSpelerslijst();

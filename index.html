@@ -13,6 +13,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
 <link rel="stylesheet" href="style.css">
+
+<!-- Supabase-client: nodig voor de gedeelde groepen/geschiedenis -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -20,6 +23,7 @@
   <h1>Sjoerd</h1>
   <nav class="tabs">
     <button class="tab-knop actief" data-tab="spel">Scorebord</button>
+    <button class="tab-knop" data-tab="stats">Statistieken</button>
     <button class="tab-knop" data-tab="uitleg">Uitleg</button>
   </nav>
 </header>
@@ -29,9 +33,59 @@
   <!-- TAB: SPEL -->
   <section id="tab-spel" class="tab-inhoud actief">
 
-    <!-- SCHERM 1: spelers toevoegen -->
-    <section id="scherm-setup" class="scherm">
+    <!-- SCHERM 0a: eenmalig of in een groep spelen -->
+    <section id="scherm-modus" class="scherm">
       <h2>Nieuw spel</h2>
+      <p class="uitleg-tekst">Wil je dit potje eenmalig spelen, of in een groep zodat de uitslagen gedeeld worden met je vrienden?</p>
+      <button id="knop-modus-eenmalig" class="knop knop-primair" type="button">Speel eenmalig</button>
+      <button id="knop-modus-groep" class="knop knop-secundair knop-volledig" type="button">Speel in een groep</button>
+    </section>
+
+    <!-- SCHERM 0b: groep kiezen/aanmaken/joinen -->
+    <section id="scherm-groep" class="scherm" hidden>
+      <h2>Kies een groep</h2>
+
+      <ul id="groepenlijst" class="spelerslijst"></ul>
+      <p id="groep-leeg-tekst" class="uitleg-tekst" hidden>Nog geen groepen bekend op deze telefoon.</p>
+
+      <button id="knop-groep-toevoegen-tonen" class="knop knop-secundair knop-volledig" type="button">+ Groep toevoegen</button>
+
+      <div id="groep-toevoegen-formulier" hidden>
+        <div class="subtabs">
+          <button id="knop-subtab-nieuw" class="subtab-knop actief" type="button">Nieuwe groep</button>
+          <button id="knop-subtab-code" class="subtab-knop" type="button">Ik heb een code</button>
+        </div>
+
+        <div id="nieuwe-groep-invoer">
+          <label for="invoer-groepnaam">Naam voor de groep (optioneel)</label>
+          <input type="text" id="invoer-groepnaam" placeholder="bijv. Vrijdagclub" autocomplete="off">
+          <button id="knop-groep-aanmaken" class="knop knop-primair" type="button">Groep aanmaken</button>
+        </div>
+
+        <div id="code-invoer" hidden>
+          <label for="invoer-groepcode">Groepscode van een vriend</label>
+          <input type="text" id="invoer-groepcode" placeholder="bijv. K3F9X2" autocomplete="off">
+          <button id="knop-groep-joinen" class="knop knop-primair" type="button">Groep toevoegen</button>
+        </div>
+      </div>
+
+      <p id="groep-foutmelding" class="foutmelding" hidden></p>
+      <button id="knop-groep-terug" class="knop knop-tekst" type="button">← Terug</button>
+    </section>
+
+    <!-- SCHERM 0c: eigen naam instellen (eenmalig per telefoon) -->
+    <section id="scherm-mijn-naam" class="scherm" hidden>
+      <h2>Wat is jouw naam?</h2>
+      <p class="uitleg-tekst">Dit onthouden we op deze telefoon, zodat je straks je eigen statistieken kan zien.</p>
+      <input type="text" id="invoer-mijn-naam" placeholder="Jouw naam" autocomplete="off">
+      <button id="knop-mijn-naam-opslaan" class="knop knop-primair" type="button">Opslaan en doorgaan</button>
+      <p id="mijn-naam-foutmelding" class="foutmelding" hidden></p>
+    </section>
+
+    <!-- SCHERM 1: spelers toevoegen -->
+    <section id="scherm-setup" class="scherm" hidden>
+      <h2>Nieuw spel</h2>
+      <p id="actieve-groep-info" class="uitleg-tekst" hidden></p>
       <p class="uitleg-tekst">Voer de namen van de spelers in (minimaal 2).</p>
 
       <button id="knop-vorige-spelers" class="knop knop-secundair knop-volledig" type="button" hidden>Vorige spelers ophalen</button>
@@ -87,6 +141,31 @@
       <button id="knop-nieuw-spel" class="knop knop-primair">Nieuw spel</button>
     </section>
 
+  </section>
+
+  <!-- TAB: STATISTIEKEN -->
+  <section id="tab-stats" class="tab-inhoud">
+    <h2>Statistieken</h2>
+    <p id="stats-laden-tekst" class="uitleg-tekst" hidden>Bezig met laden...</p>
+    <p id="stats-fout-tekst" class="foutmelding" hidden></p>
+    <p id="stats-geen-groepen" class="uitleg-tekst" hidden>Je hebt nog geen groep gebruikt. Kies bij "Nieuw spel" voor "Speel in een groep" om hier straks statistieken te zien.</p>
+
+    <div id="stats-inhoud" hidden>
+      <label for="select-stats-groep">Groep</label>
+      <select id="select-stats-groep"></select>
+
+      <h3>Overwinningen in deze groep</h3>
+      <table id="stats-groep-tabel" class="scorebord-tabel">
+        <thead><tr><th>Speler</th><th>Potjes gewonnen</th></tr></thead>
+        <tbody id="stats-groep-body"></tbody>
+      </table>
+
+      <h3>Jouw resultaten (over al je groepen)</h3>
+      <table id="stats-persoonlijk-tabel" class="scorebord-tabel">
+        <thead><tr><th>Tegenstander</th><th>Samen gespeeld</th><th>Jij gewonnen</th></tr></thead>
+        <tbody id="stats-persoonlijk-body"></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- TAB: UITLEG -->
