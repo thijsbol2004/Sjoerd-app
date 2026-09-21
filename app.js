@@ -361,10 +361,13 @@ function renderRondeFormulier() {
     rij.className = "punten-invoer-rij";
     rij.innerHTML = `
       <span>${speler.naam}</span>
-      <input type="number" min="0" step="1" class="punten-invoer" data-naam="${speler.naam}" placeholder="score">
+      <input type="number" min="0" step="1" inputmode="numeric" autocomplete="off" class="punten-invoer" data-naam="${speler.naam}" placeholder="score" value="">
     `;
     puntenInvoerLijst.appendChild(rij);
   });
+
+  // Extra zekerheid tegen browsers die oude waarden proberen te onthouden/suggereren
+  document.querySelectorAll(".punten-invoer").forEach((veld) => { veld.value = ""; });
 
   knopRondeOngedaan.disabled = rondeSnapshots.length === 0;
 }
