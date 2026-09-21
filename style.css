@@ -13,19 +13,25 @@
 
 * { box-sizing: border-box; }
 
+/* Zorgt dat het hidden-attribuut altijd wint, ook als een class (zoals .knop)
+   zelf een display-waarde zet */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--kleur-achtergrond);
   color: var(--kleur-tekst);
-  padding-bottom: 3rem;
+  padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
 }
 
 /* Header met titel en tabs */
 .app-header {
   background: var(--kleur-tafel);
   color: white;
-  padding: 1.2rem 1rem 0 1rem;
+  /* env(safe-area-inset-top) voorkomt dat de titel wegduikt achter de
+     statusbalk/notch wanneer de app als PWA vanaf het beginscherm draait */
+  padding: calc(1.2rem + env(safe-area-inset-top, 0px)) 1rem 0 1rem;
   border-bottom-left-radius: var(--straal);
   border-bottom-right-radius: var(--straal);
 }
@@ -161,6 +167,12 @@ label {
   color: white;
   width: auto;
   white-space: nowrap;
+}
+
+.knop-volledig {
+  width: 100%;
+  white-space: normal;
+  margin-bottom: 1rem;
 }
 
 .knop-tekst {

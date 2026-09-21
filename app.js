@@ -7,6 +7,8 @@ let ronde = 1;
 let scorehouder = null;   // naam van de speler die verloor in ronde 1
 let rondeSnapshots = [];  // kopieën van de status vóór elke ronde, voor "ongedaan maken"
 
+const LAATSTE_SPELERS_KEY = "sjoerdLaatsteSpelers"; // onthoudt de spelerslijst van het vorige spel
+
 // --- DOM-elementen ---
 const el = (id) => document.getElementById(id);
 
@@ -21,6 +23,7 @@ const spelerslijstEl = el("spelerslijst");
 const formSpelerToevoegen = el("form-speler-toevoegen");
 const invoerSpelernaam = el("invoer-spelernaam");
 const knopStartSpel = el("knop-start-spel");
+const knopVorigeSpelers = el("knop-vorige-spelers");
 const setupFoutmelding = el("setup-foutmelding");
 
 const scorebordBody = el("scorebord-body");
@@ -64,7 +67,16 @@ function renderSpelerslijst() {
     spelerslijstEl.appendChild(li);
   });
   knopStartSpel.disabled = setupNamen.length < 2;
+
+  // "Vorige spelers ophalen" alleen tonen als de lijst nu leeg is en er iets bewaard is
+  const laatsteSpelers = JSON.parse(localStorage.getItem(LAATSTE_SPELERS_KEY) || "[]");
+  knopVorigeSpelers.hidden = setupNamen.length > 0 || laatsteSpelers.length === 0;
 }
+
+knopVorigeSpelers.addEventListener("click", () => {
+  setupNamen = JSON.parse(localStorage.getItem(LAATSTE_SPELERS_KEY) || "[]");
+  renderSpelerslijst();
+});
 
 formSpelerToevoegen.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -85,6 +97,8 @@ formSpelerToevoegen.addEventListener("submit", (e) => {
 });
 
 knopStartSpel.addEventListener("click", () => {
+  localStorage.setItem(LAATSTE_SPELERS_KEY, JSON.stringify(setupNamen));
+
   spelers = setupNamen.map((naam) => ({ naam, totaal: 0, aantalKeerNul: 0 }));
   ronde = 1;
   scorehouder = null;
