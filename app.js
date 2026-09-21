@@ -2,7 +2,7 @@
 
 // --- Status van de app (in het geheugen, niet opgeslagen tussen ronden) ---
 let setupNamen = [];      // namen die op het setup-scherm staan
-let spelers = [];         // [{ naam, totaal }] tijdens een lopend spel
+let spelers = [];         // [{ naam, totaal, aantalKeerNul }] tijdens een lopend spel
 let ronde = 1;
 let scorehouder = null;   // naam van de speler die verloor in ronde 1
 let rondeSnapshots = [];  // kopieën van de status vóór elke ronde, voor "ongedaan maken"
@@ -28,7 +28,6 @@ const delerInfo = el("deler-info");
 const scorehouderInfo = el("scorehouder-info");
 
 const rondeTitel = el("ronde-titel");
-const selectSjoerd = el("select-sjoerd");
 const puntenInvoerLijst = el("punten-invoer-lijst");
 const rondeFoutmelding = el("ronde-foutmelding");
 const knopRondeVerwerken = el("knop-ronde-verwerken");
@@ -86,7 +85,7 @@ formSpelerToevoegen.addEventListener("submit", (e) => {
 });
 
 knopStartSpel.addEventListener("click", () => {
-  spelers = setupNamen.map((naam) => ({ naam, totaal: 0 }));
+  spelers = setupNamen.map((naam) => ({ naam, totaal: 0, aantalKeerNul: 0 }));
   ronde = 1;
   scorehouder = null;
   rondeSnapshots = [];
@@ -130,21 +129,13 @@ function renderRondeFormulier() {
   rondeTitel.textContent = `Ronde ${ronde}`;
   rondeFoutmelding.hidden = true;
 
-  selectSjoerd.innerHTML = "";
-  spelers.forEach((speler) => {
-    const optie = document.createElement("option");
-    optie.value = speler.naam;
-    optie.textContent = speler.naam;
-    selectSjoerd.appendChild(optie);
-  });
-
   puntenInvoerLijst.innerHTML = "";
   spelers.forEach((speler) => {
     const rij = document.createElement("div");
     rij.className = "punten-invoer-rij";
     rij.innerHTML = `
       <span>${speler.naam}</span>
-      <input type="number" min="0" step="1" class="punten-invoer" data-naam="${speler.naam}" placeholder="punten">
+      <input type="number" min="0" step="1" class="punten-invoer" data-naam="${speler.naam}" placeholder="score">
     `;
     puntenInvoerLijst.appendChild(rij);
   });
@@ -172,10 +163,11 @@ knopRondeOngedaan.addEventListener("click", () => {
 });
 
 // ===== Een ronde verwerken =====
+// De sjoerd-regels (0 punten, +15 straf, gelijkspel) worden aan tafel toegepast —
+// hier wordt alleen het al-berekende resultaat per speler opgeteld bij zijn totaal.
 knopRondeVerwerken.addEventListener("click", () => {
   rondeFoutmelding.hidden = true;
 
-  const sjoerdNaam = selectSjoerd.value;
   const puntenVelden = document.querySelectorAll(".punten-invoer");
   const puntenPerSpeler = {};
 
@@ -189,33 +181,19 @@ knopRondeVerwerken.addEventListener("click", () => {
     puntenPerSpeler[veld.dataset.naam] = Number(waarde);
   }
 
-  const zeggerPunten = puntenPerSpeler[sjoerdNaam];
-  if (zeggerPunten > 7) {
-    rondeFoutmelding.textContent = `"Sjoerd" roepen mag alleen met 7 punten of minder in je hand.`;
-    rondeFoutmelding.hidden = false;
-    return;
-  }
-
   maakSnapshot();
 
-  const minAll = Math.min(...Object.values(puntenPerSpeler));
   const isEersteRonde = ronde === 1;
   let hoogsteRondeScore = -Infinity;
   let verliezerRonde1 = null;
 
   spelers.forEach((speler) => {
-    const punten = puntenPerSpeler[speler.naam];
-    let rondeScore;
-
-    if (speler.naam === sjoerdNaam) {
-      // Zegger krijgt 0 punten als hij (gelijk aan) de laagste is, anders straf
-      rondeScore = punten === minAll ? 0 : punten + 15;
-    } else {
-      // Alleen bij een sjoerd-straf krijgt de écht laagste speler 0 punten
-      rondeScore = zeggerPunten > minAll && punten === minAll ? 0 : punten;
-    }
-
+    const rondeScore = puntenPerSpeler[speler.naam];
     speler.totaal += rondeScore;
+
+    if (rondeScore === 0) {
+      speler.aantalKeerNul += 1;
+    }
 
     if (isEersteRonde && rondeScore > hoogsteRondeScore) {
       hoogsteRondeScore = rondeScore;
@@ -252,7 +230,7 @@ function toonSpelAfgelopen() {
   gesorteerd.forEach((speler) => {
     const tr = document.createElement("tr");
     if (speler.naam === winnaar.naam) tr.classList.add("rij-winnaar");
-    tr.innerHTML = `<td>${speler.naam}</td><td>${speler.totaal}</td>`;
+    tr.innerHTML = `<td>${speler.naam}</td><td>${speler.totaal}</td><td>${speler.aantalKeerNul}</td>`;
     eindstandBody.appendChild(tr);
   });
 

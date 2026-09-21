@@ -62,9 +62,7 @@
 
       <div class="ronde-kaart">
         <h2 id="ronde-titel">Ronde 1</h2>
-
-        <label for="select-sjoerd">Wie riep "Sjoerd"?</label>
-        <select id="select-sjoerd" required></select>
+        <p class="uitleg-tekst">Vul per speler in wat hij deze ronde bij zijn totaal moet optellen (dus al met de sjoerd-regels toegepast — zie de Uitleg-tab).</p>
 
         <div id="punten-invoer-lijst" class="punten-invoer-lijst"></div>
 
@@ -81,7 +79,7 @@
       <h2>Spel afgelopen! 🎉</h2>
       <p id="winnaar-tekst" class="winnaar-tekst"></p>
       <table id="eindstand-tabel" class="scorebord-tabel">
-        <thead><tr><th>Speler</th><th>Eindtotaal</th></tr></thead>
+        <thead><tr><th>Speler</th><th>Eindtotaal</th><th>Sjoerds (0 punten)</th></tr></thead>
         <tbody id="eindstand-body"></tbody>
       </table>
       <button id="knop-nieuw-spel" class="knop knop-primair">Nieuw spel</button>
@@ -105,11 +103,14 @@
 
     <h3>Kaarten wegleggen</h3>
     <p>Je mag een kaart wegleggen op de open wegleg-stapel en pakt daarna 1 kaart terug: óf de bovenste van de wegleg-stapel, óf een dichte kaart van de pakstapel.</p>
-    <p>Je mag ook een straatje (vanaf 2 kaarten, bijv. 5-6) of dubbele kaarten (bijv. twee 8'ens, of 9-boer) in één keer wegleggen. Ook dan pak je maar 1 kaart terug — leg je 3 kaarten weg, dan houd je nog maar 3 kaarten in je hand.</p>
+    <p>Je mag ook een straatje (vanaf 2 kaarten, bijv. 5-6, of 9-10-boer) of dubbele kaarten (bijv. twee 8'ens, of drie heren) in één keer wegleggen. Ook dan pak je maar 1 kaart terug — leg je 3 kaarten weg, dan houd je nog maar 3 kaarten in je hand.</p>
     <p>De joker mag als "wildcard" gebruikt worden om een straatje compleet te maken (bijv. boer, joker, heer — de joker fungeert dan als vrouw).</p>
 
+    <h3>Pakstapel op?</h3>
+    <p>Speel je met veel mensen en is de pakstapel op voordat iemand "Sjoerd" heeft geroepen? Schud dan alle kaarten van de wegleg-stapel opnieuw en speel door.</p>
+
     <h3>"Sjoerd" roepen</h3>
-    <p>Een ronde eindigt zodra iemand "Sjoerd" roept. Dat mag alleen als je op dat moment <strong>7 punten of minder</strong> in je hand hebt. Het spel stopt gelijk en iedereen telt de punten in zijn hand.</p>
+    <p>Een ronde eindigt zodra iemand "Sjoerd" roept. Dat mag alleen als je op dat moment <strong>7 punten of minder</strong> in je hand hebt, én alleen aan het <strong>begin van je eigen beurt</strong>. Ruil je een kaart en heb je daarna 7 of minder? Dan moet je nog wachten tot je weer aan de beurt bent voordat je "Sjoerd" mag roepen. Zodra iemand roept, stopt het spel gelijk en telt iedereen de punten in zijn hand.</p>
 
     <ul class="regel-lijst">
       <li>Heb je écht de laagste (of gelijk aan de laagste) punten van iedereen? Dan krijg je <strong>0 punten</strong> voor die ronde.</li>
@@ -122,6 +123,9 @@
 
     <h3>Wie deelt?</h3>
     <p>Degene met de hoogste punten moet de volgende ronde schudden en delen. De speler links van de deler begint. Er ligt altijd één kaart open op tafel, ook bij de allereerste ronde.</p>
+
+    <h3>Wie noteert de punten?</h3>
+    <p>Degene die de eerste ronde verliest, noteert voor de rest van het spel de punten van iedereen.</p>
   </section>
 
 </main>
