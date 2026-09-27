@@ -82,6 +82,19 @@
       <p id="mijn-naam-foutmelding" class="foutmelding" hidden></p>
     </section>
 
+    <!-- SCHERM 0d: er loopt al een spel in deze groep (overnemen op een andere telefoon) -->
+    <section id="scherm-lopend-spel" class="scherm" hidden>
+      <h2>Er loopt een spel</h2>
+      <p id="lopend-spel-info" class="uitleg-tekst"></p>
+      <table class="scorebord-tabel">
+        <thead><tr><th class="kolom-positie">#</th><th>Speler</th><th>Punten</th></tr></thead>
+        <tbody id="lopend-spel-body"></tbody>
+      </table>
+      <button id="knop-lopend-doorgaan" class="knop knop-primair" type="button">Verder gaan met dit spel</button>
+      <button id="knop-lopend-nieuw" class="knop knop-tekst" type="button">Toch een nieuw spel starten</button>
+      <p class="uitleg-tekst">Start je een nieuw spel, dan vervalt het spel dat nu loopt.</p>
+    </section>
+
     <!-- SCHERM 1: spelers toevoegen -->
     <section id="scherm-setup" class="scherm" hidden>
       <h2>Nieuw spel</h2>
@@ -108,12 +121,27 @@
         <h2>Stand</h2>
         <table id="scorebord-tabel" class="scorebord-tabel">
           <thead>
-            <tr><th>Speler</th><th>Punten</th></tr>
+            <tr><th class="kolom-positie">#</th><th>Speler</th><th>Punten</th></tr>
           </thead>
           <tbody id="scorebord-body"></tbody>
         </table>
         <p id="deler-info" class="deler-info"></p>
         <p id="scorehouder-info" class="scorehouder-info"></p>
+        <p id="sync-info" class="sync-info" hidden></p>
+
+        <button id="knop-speler-inkopen" class="knop knop-tekst" type="button">+ Speler inkopen</button>
+
+        <div id="inkopen-formulier" hidden>
+          <label for="invoer-inkoper-naam">Naam van de nieuwe speler</label>
+          <input type="text" id="invoer-inkoper-naam" placeholder="Naam" autocomplete="off">
+
+          <label for="invoer-inkoop-punten">Inkopen op hoeveel punten?</label>
+          <input type="number" id="invoer-inkoop-punten" min="0" step="1" inputmode="numeric" autocomplete="off">
+
+          <p id="inkopen-foutmelding" class="foutmelding" hidden></p>
+          <button id="knop-inkopen-bevestigen" class="knop knop-primair" type="button">Toevoegen</button>
+          <button id="knop-inkopen-annuleren" class="knop knop-tekst" type="button">Annuleren</button>
+        </div>
       </div>
 
       <div class="ronde-kaart">
@@ -134,8 +162,9 @@
     <section id="scherm-gameover" class="scherm" hidden>
       <h2>Spel afgelopen! 🎉</h2>
       <p id="winnaar-tekst" class="winnaar-tekst"></p>
+      <p id="rondes-gespeeld-tekst" class="uitleg-tekst"></p>
       <table id="eindstand-tabel" class="scorebord-tabel">
-        <thead><tr><th>Speler</th><th>Eindtotaal</th><th>Sjoerds (0 punten)</th></tr></thead>
+        <thead><tr><th>Speler</th><th>Eindtotaal</th><th>Rondes met 0 punten</th></tr></thead>
         <tbody id="eindstand-body"></tbody>
       </table>
       <button id="knop-nieuw-spel" class="knop knop-primair">Nieuw spel</button>
@@ -151,20 +180,52 @@
     <p id="stats-geen-groepen" class="uitleg-tekst" hidden>Je hebt nog geen groep gebruikt. Kies bij "Nieuw spel" voor "Speel in een groep" om hier straks statistieken te zien.</p>
 
     <div id="stats-inhoud" hidden>
-      <label for="select-stats-groep">Groep</label>
+      <label for="select-stats-groep">Welke groep wil je zien?</label>
       <select id="select-stats-groep"></select>
+      <p id="stats-scope-tekst" class="stats-scope-tekst"></p>
 
-      <h3>Overwinningen in deze groep</h3>
-      <table id="stats-groep-tabel" class="scorebord-tabel">
-        <thead><tr><th>Speler</th><th>Potjes gewonnen</th></tr></thead>
-        <tbody id="stats-groep-body"></tbody>
-      </table>
+      <h3 id="stats-ranglijst-kop">Ranglijst</h3>
+      <div class="tabel-scroll">
+        <table class="scorebord-tabel">
+          <thead>
+            <tr>
+              <th class="kolom-positie">#</th>
+              <th>Speler</th>
+              <th class="kolom-getal">Potjes</th>
+              <th class="kolom-getal">Gewonnen</th>
+              <th class="kolom-getal">Win%</th>
+              <th class="kolom-getal">Gem. eind</th>
+              <th class="kolom-getal">0-rondes</th>
+            </tr>
+          </thead>
+          <tbody id="stats-ranglijst-body"></tbody>
+        </table>
+      </div>
+      <p id="stats-oude-potjes-uitleg" class="uitleg-tekst" hidden></p>
 
-      <h3>Jouw resultaten (over al je groepen)</h3>
-      <table id="stats-persoonlijk-tabel" class="scorebord-tabel">
-        <thead><tr><th>Tegenstander</th><th>Samen gespeeld</th><th>Jij gewonnen</th></tr></thead>
-        <tbody id="stats-persoonlijk-body"></tbody>
-      </table>
+      <h3 id="stats-persoonlijk-kop">Jouw onderlinge resultaten</h3>
+      <div class="tabel-scroll">
+        <table class="scorebord-tabel">
+          <thead>
+            <tr>
+              <th>Tegenstander</th>
+              <th class="kolom-getal">Samen</th>
+              <th class="kolom-getal">Jij won</th>
+              <th class="kolom-getal">Hij/zij won</th>
+              <th class="kolom-getal">Jouw win%</th>
+            </tr>
+          </thead>
+          <tbody id="stats-persoonlijk-body"></tbody>
+        </table>
+      </div>
+
+      <h3>Laatste potjes</h3>
+      <div class="tabel-scroll">
+        <table class="scorebord-tabel">
+          <thead><tr><th>Datum</th><th>Winnaar</th><th>Spelers</th></tr></thead>
+          <tbody id="stats-recent-body"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -198,6 +259,10 @@
       <li>Heeft iemand anders minder punten dan jij, terwijl jij toch "Sjoerd" riep? Dan krijg jij je handpunten <strong>+ 15 strafpunten</strong> — en degene die écht het laagst zat krijgt 0 punten.</li>
       <li>Alle overige spelers tellen gewoon hun eigen handpunten bij hun totaal op.</li>
     </ul>
+
+    <h3>Rondes met 0 punten</h3>
+    <p>Elke ronde krijgt minstens één speler 0 punten: degene die "Sjoerd" riep, of — als die er naast zat — degene die écht het laagst zat. De app vraagt daarom per ronde om minstens één 0; anders is er iets verkeerd geteld aan tafel.</p>
+    <p>Op het eindscherm en in de statistieken zie je hoeveel rondes je 0 punten had. Dat is dus niet precies hetzelfde als hoe vaak jij zelf "Sjoerd" riep — je kunt ook 0 krijgen doordat iemand anders te vroeg riep.</p>
 
     <h3>Einde van het spel</h3>
     <p>Je speelt door tot iemand 100 punten of meer heeft. Zodra dat gebeurt, stopt het hele spel direct. De winnaar is de speler met de <strong>laagste</strong> totaalscore.</p>

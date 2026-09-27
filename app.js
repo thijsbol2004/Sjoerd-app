@@ -58,13 +58,24 @@ const mijnNaamFoutmelding = el("mijn-naam-foutmelding");
 
 const actieveGroepInfo = el("actieve-groep-info");
 
+const schermLopendSpel = el("scherm-lopend-spel");
+const lopendSpelInfo = el("lopend-spel-info");
+const lopendSpelBody = el("lopend-spel-body");
+const knopLopendDoorgaan = el("knop-lopend-doorgaan");
+const knopLopendNieuw = el("knop-lopend-nieuw");
+
 const statsLadenTekst = el("stats-laden-tekst");
 const statsFoutTekst = el("stats-fout-tekst");
 const statsGeenGroepen = el("stats-geen-groepen");
 const statsInhoud = el("stats-inhoud");
 const selectStatsGroep = el("select-stats-groep");
-const statsGroepBody = el("stats-groep-body");
+const statsScopeTekst = el("stats-scope-tekst");
+const statsRanglijstKop = el("stats-ranglijst-kop");
+const statsRanglijstBody = el("stats-ranglijst-body");
+const statsOudePotjesUitleg = el("stats-oude-potjes-uitleg");
+const statsPersoonlijkKop = el("stats-persoonlijk-kop");
 const statsPersoonlijkBody = el("stats-persoonlijk-body");
+const statsRecentBody = el("stats-recent-body");
 
 const spelerslijstEl = el("spelerslijst");
 const formSpelerToevoegen = el("form-speler-toevoegen");
@@ -76,6 +87,15 @@ const setupFoutmelding = el("setup-foutmelding");
 const scorebordBody = el("scorebord-body");
 const delerInfo = el("deler-info");
 const scorehouderInfo = el("scorehouder-info");
+const syncInfo = el("sync-info");
+
+const knopSpelerInkopen = el("knop-speler-inkopen");
+const inkopenFormulier = el("inkopen-formulier");
+const invoerInkoperNaam = el("invoer-inkoper-naam");
+const invoerInkoopPunten = el("invoer-inkoop-punten");
+const inkopenFoutmelding = el("inkopen-foutmelding");
+const knopInkopenBevestigen = el("knop-inkopen-bevestigen");
+const knopInkopenAnnuleren = el("knop-inkopen-annuleren");
 
 const rondeTitel = el("ronde-titel");
 const puntenInvoerLijst = el("punten-invoer-lijst");
@@ -84,6 +104,7 @@ const knopRondeVerwerken = el("knop-ronde-verwerken");
 const knopRondeOngedaan = el("knop-ronde-ongedaan");
 
 const winnaarTekst = el("winnaar-tekst");
+const rondesGespeeldTekst = el("rondes-gespeeld-tekst");
 const eindstandBody = el("eindstand-body");
 const knopNieuwSpel = el("knop-nieuw-spel");
 
@@ -173,12 +194,23 @@ function kiesGroep(groep) {
   }
 }
 
-function gaNaarSetup() {
+async function gaNaarSetup() {
   schermMijnNaam.hidden = true;
   actieveGroepInfo.hidden = !groepActief;
   actieveGroepInfo.textContent = groepActief
     ? `Groep: ${groepActief.naam ? `${groepActief.naam} (${groepActief.code})` : groepActief.code}`
     : "";
+
+  // Loopt er in deze groep nog een spel? Dan eerst de keuze geven om het over te
+  // nemen — zo kan een andere telefoon verder met dezelfde stand en namen.
+  if (groepActief) {
+    const lopend = await haalLopendSpelOp(groepActief.code);
+    if (lopend) {
+      toonLopendSpelScherm(lopend);
+      return;
+    }
+  }
+
   schermSetup.hidden = false;
 }
 
@@ -262,6 +294,96 @@ knopMijnNaamOpslaan.addEventListener("click", () => {
   gaNaarSetup();
 });
 
+// ===== Scherm 0d: lopend spel in de groep overnemen =====
+async function haalLopendSpelOp(groepcode) {
+  const { data, error } = await supabaseClient
+    .from("lopende_potjes")
+    .select("ronde, scorehouder, spelers, bijgewerkt_op")
+    .eq("groepcode", groepcode)
+    .maybeSingle();
+
+  if (error) return null;
+  return data;
+}
+
+function tijdGeleden(isoTekst) {
+  const minuten = Math.round((Date.now() - new Date(isoTekst).getTime()) / 60000);
+  if (minuten < 1) return "net";
+  if (minuten < 60) return `${minuten} ${minuten === 1 ? "minuut" : "minuten"} geleden`;
+  const uren = Math.round(minuten / 60);
+  if (uren < 24) return `${uren} ${uren === 1 ? "uur" : "uur"} geleden`;
+  const dagen = Math.round(uren / 24);
+  return `${dagen} ${dagen === 1 ? "dag" : "dagen"} geleden`;
+}
+
+function toonLopendSpelScherm(lopend) {
+  lopendSpelInfo.textContent =
+    `In deze groep loopt een spel bij ronde ${lopend.ronde} — laatst bijgewerkt ${tijdGeleden(lopend.bijgewerkt_op)}.`;
+
+  lopendSpelBody.innerHTML = "";
+  [...lopend.spelers]
+    .sort((a, b) => a.totaal - b.totaal)
+    .forEach((speler, index) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="kolom-positie">${index + 1}</td><td>${speler.naam}</td><td>${speler.totaal}</td>`;
+      lopendSpelBody.appendChild(tr);
+    });
+
+  knopLopendDoorgaan.onclick = () => neemLopendSpelOver(lopend);
+  schermLopendSpel.hidden = false;
+}
+
+function neemLopendSpelOver(lopend) {
+  spelers = lopend.spelers.map((s) => ({
+    naam: s.naam,
+    totaal: s.totaal,
+    aantalKeerNul: s.aantalKeerNul || 0,
+  }));
+  ronde = lopend.ronde;
+  scorehouder = lopend.scorehouder;
+  rondeSnapshots = []; // de rondes van de andere telefoon kunnen we niet ongedaan maken
+
+  // Namen ook lokaal onthouden, zodat "vorige spelers ophalen" hier straks werkt
+  localStorage.setItem(LAATSTE_SPELERS_KEY, JSON.stringify(spelers.map((s) => s.naam)));
+
+  schermLopendSpel.hidden = true;
+  schermGameover.hidden = true;
+  inkopenFormulier.hidden = true;
+  schermSpel.hidden = false;
+
+  renderScorebord();
+  renderRondeFormulier();
+}
+
+knopLopendNieuw.addEventListener("click", () => {
+  schermLopendSpel.hidden = true;
+  schermSetup.hidden = false;
+});
+
+// ===== Lopend spel delen met de groep (Supabase) =====
+// Alleen actief als er een groep gekozen is; bij "Speel eenmalig" gebeurt er niets.
+async function syncLopendSpel() {
+  if (!groepActief) return;
+
+  const { error } = await supabaseClient.from("lopende_potjes").upsert({
+    groepcode: groepActief.code,
+    ronde,
+    scorehouder,
+    spelers,
+    bijgewerkt_op: new Date().toISOString(),
+  });
+
+  syncInfo.textContent = error
+    ? "Stand nog niet gedeeld met de groep — controleer je internet."
+    : "Stand gedeeld met de groep.";
+  syncInfo.classList.toggle("sync-info-fout", Boolean(error));
+  syncInfo.hidden = false;
+}
+
+async function verwijderLopendSpel(groepcode) {
+  await supabaseClient.from("lopende_potjes").delete().eq("groepcode", groepcode);
+}
+
 // ===== Setup-scherm: spelers toevoegen/verwijderen =====
 function renderSpelerslijst() {
   spelerslijstEl.innerHTML = "";
@@ -318,18 +440,25 @@ knopStartSpel.addEventListener("click", () => {
 
   schermSetup.hidden = true;
   schermGameover.hidden = true;
+  inkopenFormulier.hidden = true;
+  syncInfo.hidden = true;
   schermSpel.hidden = false;
 
   renderScorebord();
   renderRondeFormulier();
+  syncLopendSpel();
 });
 
 // ===== Scorebord weergeven =====
 function renderScorebord() {
   scorebordBody.innerHTML = "";
-  spelers.forEach((speler) => {
+
+  // Weergave op stand (laagste = beste). De array `spelers` zelf blijft in
+  // zitvolgorde staan, want de deler/beginner-rotatie hieronder rekent daarmee.
+  const opStand = [...spelers].sort((a, b) => a.totaal - b.totaal);
+  opStand.forEach((speler, index) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${speler.naam}</td><td>${speler.totaal}</td>`;
+    tr.innerHTML = `<td class="kolom-positie">${index + 1}</td><td>${speler.naam}</td><td>${speler.totaal}</td>`;
     scorebordBody.appendChild(tr);
   });
 
@@ -372,6 +501,65 @@ function renderRondeFormulier() {
   knopRondeOngedaan.disabled = rondeSnapshots.length === 0;
 }
 
+// ===== Speler inkopen midden in het spel =====
+knopSpelerInkopen.addEventListener("click", () => {
+  inkopenFoutmelding.hidden = true;
+  invoerInkoperNaam.value = "";
+  // Voorstel: de hoogste stand van dit moment. De groep bepaalt het echte getal,
+  // dus dit veld is gewoon overtypbaar.
+  invoerInkoopPunten.value = Math.max(...spelers.map((s) => s.totaal));
+  inkopenFormulier.hidden = false;
+  invoerInkoperNaam.focus();
+});
+
+knopInkopenAnnuleren.addEventListener("click", () => {
+  inkopenFormulier.hidden = true;
+  inkopenFoutmelding.hidden = true;
+});
+
+knopInkopenBevestigen.addEventListener("click", () => {
+  inkopenFoutmelding.hidden = true;
+
+  const naam = invoerInkoperNaam.value.trim();
+  const punten = Number(invoerInkoopPunten.value.trim());
+
+  if (!naam) {
+    toonInkopenFout("Vul een naam in.");
+    return;
+  }
+  if (spelers.some((s) => s.naam.toLowerCase() === naam.toLowerCase())) {
+    toonInkopenFout("Die naam doet al mee in dit spel.");
+    return;
+  }
+  if (invoerInkoopPunten.value.trim() === "" || !Number.isInteger(punten) || punten < 0) {
+    toonInkopenFout("Vul een heel getal van 0 of hoger in om op in te kopen.");
+    return;
+  }
+
+  // Snapshot vóór de wijziging, zodat "vorige ronde ongedaan maken" ook het
+  // inkopen terugdraait als er verkeerd is ingevuld.
+  maakSnapshot();
+
+  spelers.push({ naam, totaal: punten, aantalKeerNul: 0 });
+
+  inkopenFormulier.hidden = true;
+  invoerInkoperNaam.value = "";
+
+  if (punten >= 100) {
+    toonSpelAfgelopen();
+    return;
+  }
+
+  renderScorebord();
+  renderRondeFormulier();
+  syncLopendSpel();
+});
+
+function toonInkopenFout(tekst) {
+  inkopenFoutmelding.textContent = tekst;
+  inkopenFoutmelding.hidden = false;
+}
+
 // ===== Status opslaan vóór een ronde, voor "ongedaan maken" =====
 function maakSnapshot() {
   rondeSnapshots.push({
@@ -389,6 +577,7 @@ knopRondeOngedaan.addEventListener("click", () => {
   scorehouder = vorige.scorehouder;
   renderScorebord();
   renderRondeFormulier();
+  syncLopendSpel();
 });
 
 // ===== Een ronde verwerken =====
@@ -408,6 +597,17 @@ knopRondeVerwerken.addEventListener("click", () => {
       return;
     }
     puntenPerSpeler[veld.dataset.naam] = Number(waarde);
+  }
+
+  // Elke ronde hoort minstens één speler op 0 te staan: degene die "Sjoerd" riep,
+  // of de laagste als die er naast zat. Zonder deze eis lopen de 0-punten-tellers
+  // uit de pas met het aantal gespeelde rondes.
+  const iemandOpNul = Object.values(puntenPerSpeler).some((punten) => punten === 0);
+  if (!iemandOpNul) {
+    rondeFoutmelding.textContent =
+      "Minstens één speler moet 0 punten hebben: degene die Sjoerd riep, of degene die écht het laagst zat. Zie de Uitleg-tab.";
+    rondeFoutmelding.hidden = false;
+    return;
   }
 
   maakSnapshot();
@@ -442,6 +642,7 @@ knopRondeVerwerken.addEventListener("click", () => {
   } else {
     renderScorebord();
     renderRondeFormulier();
+    syncLopendSpel();
   }
 });
 
@@ -449,11 +650,14 @@ knopRondeVerwerken.addEventListener("click", () => {
 function toonSpelAfgelopen() {
   const gesorteerd = [...spelers].sort((a, b) => a.totaal - b.totaal);
   const winnaar = gesorteerd[0];
+  const gespeeldeRondes = ronde - 1;
 
   schermSpel.hidden = true;
   schermGameover.hidden = false;
+  inkopenFormulier.hidden = true;
 
   winnaarTekst.textContent = `${winnaar.naam} wint met ${winnaar.totaal} punten!`;
+  rondesGespeeldTekst.textContent = `Rondes gespeeld: ${gespeeldeRondes}`;
 
   eindstandBody.innerHTML = "";
   gesorteerd.forEach((speler) => {
@@ -466,20 +670,32 @@ function toonSpelAfgelopen() {
   opslaanGeschiedenis(winnaar.naam, spelers.map((s) => s.naam));
 
   if (groepActief) {
-    opslaanPotjeInGroep(groepActief.code, winnaar.naam, spelers.map((s) => s.naam));
+    const eindstand = spelers.map((s) => ({
+      naam: s.naam,
+      totaal: s.totaal,
+      nulRondes: s.aantalKeerNul,
+    }));
+    opslaanPotjeInGroep(groepActief.code, winnaar.naam, eindstand, gespeeldeRondes);
   }
 }
 
 // ===== Potje-uitslag wegschrijven naar de groep (Supabase) =====
-async function opslaanPotjeInGroep(groepcode, winnaarNaam, alleSpelers) {
+async function opslaanPotjeInGroep(groepcode, winnaarNaam, eindstand, gespeeldeRondes) {
   const { error } = await supabaseClient.from("potjes").insert({
     groepcode,
     winnaar: winnaarNaam,
-    spelers: alleSpelers,
+    spelers: eindstand.map((rij) => rij.naam),
+    eindstand,
+    aantal_rondes: gespeeldeRondes,
   });
+
   if (error) {
     winnaarTekst.textContent += " (let op: kon niet naar de groep worden gesynchroniseerd — controleer je internet)";
+    return;
   }
+
+  // Het potje is afgerond, dus er loopt geen spel meer in deze groep
+  verwijderLopendSpel(groepcode);
 }
 
 // ===== Geschiedenis (alleen winnaars, voor latere head-to-head-functie) =====
@@ -496,11 +712,17 @@ function opslaanGeschiedenis(winnaarNaam, alleSpelers) {
 knopNieuwSpel.addEventListener("click", () => {
   groepActief = null;
   schermGameover.hidden = true;
+  schermLopendSpel.hidden = true;
+  syncInfo.hidden = true;
   schermModus.hidden = false;
   renderSpelerslijst(); // namen van vorig spel blijven staan, handig voor een volgende ronde
 });
 
 // ===== Statistieken-tab =====
+// Alle potjes van alle groepen die op deze telefoon bekend zijn, één keer opgehaald.
+// De keuzelijst bovenaan de tab bepaalt daarna wat er van getoond wordt.
+let statsPotjes = [];
+
 async function laadStatistieken() {
   statsFoutTekst.hidden = true;
   const mijnGroepen = haalMijnGroepenOp();
@@ -515,11 +737,10 @@ async function laadStatistieken() {
   statsInhoud.hidden = true;
   statsLadenTekst.hidden = false;
 
-  const codes = mijnGroepen.map((g) => g.code);
-  const { data: potjes, error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("potjes")
-    .select("groepcode, winnaar, spelers, datum")
-    .in("groepcode", codes);
+    .select("groepcode, winnaar, spelers, eindstand, aantal_rondes, datum")
+    .in("groepcode", mijnGroepen.map((g) => g.code));
 
   statsLadenTekst.hidden = true;
 
@@ -529,74 +750,172 @@ async function laadStatistieken() {
     return;
   }
 
+  statsPotjes = data || [];
   statsInhoud.hidden = false;
 
+  const vorigeKeuze = selectStatsGroep.value;
   selectStatsGroep.innerHTML = "";
   mijnGroepen.forEach((groep) => {
     const optie = document.createElement("option");
     optie.value = groep.code;
     optie.textContent = groep.naam ? `${groep.naam} (${groep.code})` : groep.code;
+    optie.dataset.kortenaam = groep.naam || groep.code; // zonder code, voor de kopjes
     selectStatsGroep.appendChild(optie);
   });
+  if (mijnGroepen.length > 1) {
+    const optieAlle = document.createElement("option");
+    optieAlle.value = "alle";
+    optieAlle.textContent = "Alle groepen samen";
+    selectStatsGroep.appendChild(optieAlle);
+  }
+  // Keuze van de vorige keer vasthouden als die er nog is
+  if ([...selectStatsGroep.options].some((o) => o.value === vorigeKeuze)) {
+    selectStatsGroep.value = vorigeKeuze;
+  }
 
-  selectStatsGroep.onchange = () => renderGroepStatistieken(potjes, selectStatsGroep.value);
-  renderGroepStatistieken(potjes, selectStatsGroep.value);
-  renderPersoonlijkeStatistieken(potjes);
+  selectStatsGroep.onchange = renderStatistieken;
+  renderStatistieken();
 }
 
-function renderGroepStatistieken(potjes, groepcode) {
-  const potjesInGroep = potjes.filter((p) => p.groepcode === groepcode);
-  const overwinningen = {};
-  potjesInGroep.forEach((p) => {
-    overwinningen[p.winnaar] = (overwinningen[p.winnaar] || 0) + 1;
-  });
-  const gesorteerd = Object.entries(overwinningen).sort((a, b) => b[1] - a[1]);
+function renderStatistieken() {
+  const keuze = selectStatsGroep.value;
+  const potjes = keuze === "alle" ? statsPotjes : statsPotjes.filter((p) => p.groepcode === keuze);
+  const scopeNaam = keuze === "alle" ? "al je groepen" : selectStatsGroep.selectedOptions[0].dataset.kortenaam;
 
-  statsGroepBody.innerHTML = "";
-  if (gesorteerd.length === 0) {
-    statsGroepBody.innerHTML = "<tr><td colspan='2'>Nog geen potjes gespeeld in deze groep.</td></tr>";
+  const scopeZin = keuze === "alle" ? "over al je groepen" : `in ${scopeNaam}`;
+  statsScopeTekst.textContent = potjes.length === 1
+    ? `1 potje gespeeld ${scopeZin}`
+    : `${potjes.length} potjes gespeeld ${scopeZin}`;
+
+  statsRanglijstKop.textContent = `Ranglijst — ${scopeNaam}`;
+  statsPersoonlijkKop.textContent = `Jouw onderlinge resultaten — ${scopeNaam}`;
+
+  renderRanglijst(potjes);
+  renderOnderlingeResultaten(potjes);
+  renderLaatstePotjes(potjes);
+}
+
+function renderRanglijst(potjes) {
+  const perSpeler = {};
+
+  potjes.forEach((potje) => {
+    (potje.spelers || []).forEach((naam) => {
+      if (!perSpeler[naam]) {
+        perSpeler[naam] = { potjes: 0, gewonnen: 0, somEindscore: 0, metEindstand: 0, nulRondes: 0 };
+      }
+      perSpeler[naam].potjes += 1;
+      if (potje.winnaar === naam) perSpeler[naam].gewonnen += 1;
+    });
+
+    // Eindstand is er alleen bij potjes van na deze uitbreiding
+    (potje.eindstand || []).forEach((rij) => {
+      const cijfers = perSpeler[rij.naam];
+      if (!cijfers) return;
+      cijfers.somEindscore += rij.totaal;
+      cijfers.metEindstand += 1;
+      cijfers.nulRondes += rij.nulRondes || 0;
+    });
+  });
+
+  const rijen = Object.entries(perSpeler).sort((a, b) => {
+    if (b[1].gewonnen !== a[1].gewonnen) return b[1].gewonnen - a[1].gewonnen;
+    return b[1].gewonnen / b[1].potjes - a[1].gewonnen / a[1].potjes;
+  });
+
+  statsRanglijstBody.innerHTML = "";
+  if (rijen.length === 0) {
+    statsRanglijstBody.innerHTML = "<tr><td colspan='7'>Nog geen potjes gespeeld.</td></tr>";
+    statsOudePotjesUitleg.hidden = true;
     return;
   }
-  gesorteerd.forEach(([naam, aantal]) => {
+
+  rijen.forEach(([naam, cijfers], index) => {
+    const winPercentage = Math.round((cijfers.gewonnen / cijfers.potjes) * 100);
+    const gemEindscore = cijfers.metEindstand > 0
+      ? Math.round(cijfers.somEindscore / cijfers.metEindstand)
+      : "–";
+    const nulRondes = cijfers.metEindstand > 0 ? cijfers.nulRondes : "–";
+
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${naam}</td><td>${aantal}</td>`;
-    statsGroepBody.appendChild(tr);
+    tr.innerHTML = `
+      <td class="kolom-positie">${index + 1}</td>
+      <td>${naam}</td>
+      <td class="kolom-getal">${cijfers.potjes}</td>
+      <td class="kolom-getal">${cijfers.gewonnen}</td>
+      <td class="kolom-getal">${winPercentage}%</td>
+      <td class="kolom-getal">${gemEindscore}</td>
+      <td class="kolom-getal">${nulRondes}</td>
+    `;
+    statsRanglijstBody.appendChild(tr);
   });
+
+  const aantalZonderEindstand = potjes.filter((p) => !p.eindstand).length;
+  statsOudePotjesUitleg.textContent = aantalZonderEindstand === 1
+    ? "Van 1 ouder potje is alleen de winnaar bewaard, dus dat potje telt niet mee voor de gemiddelde eindscore en de 0-rondes."
+    : `Van ${aantalZonderEindstand} oudere potjes is alleen de winnaar bewaard, dus die tellen niet mee voor de gemiddelde eindscore en de 0-rondes.`;
+  statsOudePotjesUitleg.hidden = aantalZonderEindstand === 0;
 }
 
-function renderPersoonlijkeStatistieken(potjes) {
+function renderOnderlingeResultaten(potjes) {
   const mijnNaam = haalMijnNaamOp();
   statsPersoonlijkBody.innerHTML = "";
 
   if (!mijnNaam) {
-    statsPersoonlijkBody.innerHTML = "<tr><td colspan='3'>Nog geen naam ingesteld.</td></tr>";
+    statsPersoonlijkBody.innerHTML = "<tr><td colspan='5'>Nog geen eigen naam ingesteld.</td></tr>";
     return;
   }
 
-  const mijnPotjes = potjes.filter((p) => p.spelers.includes(mijnNaam));
   const tegenstanders = {};
-
-  mijnPotjes.forEach((p) => {
-    const ikWon = p.winnaar === mijnNaam;
-    p.spelers.forEach((speler) => {
-      if (speler === mijnNaam) return;
-      if (!tegenstanders[speler]) tegenstanders[speler] = { samen: 0, gewonnen: 0 };
-      tegenstanders[speler].samen += 1;
-      if (ikWon) tegenstanders[speler].gewonnen += 1;
+  potjes
+    .filter((potje) => (potje.spelers || []).includes(mijnNaam))
+    .forEach((potje) => {
+      potje.spelers.forEach((naam) => {
+        if (naam === mijnNaam) return;
+        if (!tegenstanders[naam]) tegenstanders[naam] = { samen: 0, ikWon: 0, hijWon: 0 };
+        tegenstanders[naam].samen += 1;
+        if (potje.winnaar === mijnNaam) tegenstanders[naam].ikWon += 1;
+        if (potje.winnaar === naam) tegenstanders[naam].hijWon += 1;
+      });
     });
-  });
 
-  const gesorteerd = Object.entries(tegenstanders).sort((a, b) => b[1].samen - a[1].samen);
+  const rijen = Object.entries(tegenstanders).sort((a, b) => b[1].samen - a[1].samen);
 
-  if (gesorteerd.length === 0) {
-    statsPersoonlijkBody.innerHTML = "<tr><td colspan='3'>Nog geen potjes gespeeld.</td></tr>";
+  if (rijen.length === 0) {
+    statsPersoonlijkBody.innerHTML = `<tr><td colspan='5'>Nog geen potjes waarin "${mijnNaam}" meespeelde.</td></tr>`;
     return;
   }
-  gesorteerd.forEach(([naam, cijfers]) => {
+
+  rijen.forEach(([naam, cijfers]) => {
+    const winPercentage = Math.round((cijfers.ikWon / cijfers.samen) * 100);
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${naam}</td><td>${cijfers.samen}</td><td>${cijfers.gewonnen}</td>`;
+    tr.innerHTML = `
+      <td>${naam}</td>
+      <td class="kolom-getal">${cijfers.samen}</td>
+      <td class="kolom-getal">${cijfers.ikWon}</td>
+      <td class="kolom-getal">${cijfers.hijWon}</td>
+      <td class="kolom-getal">${winPercentage}%</td>
+    `;
     statsPersoonlijkBody.appendChild(tr);
   });
+}
+
+function renderLaatstePotjes(potjes) {
+  statsRecentBody.innerHTML = "";
+
+  if (potjes.length === 0) {
+    statsRecentBody.innerHTML = "<tr><td colspan='3'>Nog geen potjes gespeeld.</td></tr>";
+    return;
+  }
+
+  [...potjes]
+    .sort((a, b) => new Date(b.datum) - new Date(a.datum))
+    .slice(0, 10)
+    .forEach((potje) => {
+      const datum = new Date(potje.datum).toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${datum}</td><td>${potje.winnaar}</td><td>${(potje.spelers || []).join(", ")}</td>`;
+      statsRecentBody.appendChild(tr);
+    });
 }
 
 // ===== Start =====

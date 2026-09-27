@@ -230,10 +230,50 @@ label {
   color: var(--kleur-tafel);
 }
 
-.deler-info, .scorehouder-info {
+/* Positienummer en getalkolommen in de tabellen */
+.kolom-positie {
+  width: 1.8rem;
+  color: #777;
+  text-align: right;
+}
+
+.kolom-getal {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Brede statistiekentabellen mogen zijwaarts schuiven op een smal scherm,
+   zodat de pagina zelf niet horizontaal gaat scrollen */
+.tabel-scroll {
+  overflow-x: auto;
+  margin-bottom: 0.5rem;
+}
+
+.tabel-scroll .scorebord-tabel {
+  min-width: 100%;
+}
+
+.deler-info, .scorehouder-info, .sync-info {
   font-size: 0.9rem;
   color: #555;
   margin: 0.6rem 0 0 0;
+}
+
+.sync-info-fout {
+  color: var(--kleur-fout);
+}
+
+.stats-scope-tekst {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 0.4rem 0 1rem 0;
+}
+
+/* Inkoop-formulier midden in het spel */
+#inkopen-formulier {
+  border-top: 1px solid var(--kleur-rand);
+  margin-top: 0.8rem;
+  padding-top: 0.4rem;
 }
 
 /* Ronde-invoer per speler */

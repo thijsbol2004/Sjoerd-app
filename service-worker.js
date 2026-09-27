@@ -1,7 +1,7 @@
 // Simpele service worker: cachet de app-bestanden zodat Sjoerd ook offline
 // werkt en op Android als "installeerbaar" wordt herkend.
 
-const CACHE_NAAM = "sjoerd-cache-v3";
+const CACHE_NAAM = "sjoerd-cache-v4";
 const BESTANDEN_OM_TE_CACHEN = [
   "./",
   "./index.html",
