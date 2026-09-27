@@ -198,6 +198,13 @@ label {
   border-color: var(--kleur-tafel);
 }
 
+/* Voor onomkeerbare acties, zoals een potje afkappen */
+.knop-gevaar {
+  background: var(--kleur-fout);
+  color: white;
+  font-weight: 600;
+}
+
 .knop-tekst {
   background: none;
   color: var(--kleur-tafel);
@@ -228,6 +235,10 @@ label {
 .rij-winnaar td {
   font-weight: 700;
   color: var(--kleur-tafel);
+}
+
+.rij-verliezer td {
+  color: var(--kleur-fout);
 }
 
 /* Positienummer en getalkolommen in de tabellen */
@@ -308,6 +319,25 @@ label {
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--kleur-tafel);
+  margin-bottom: 0.2rem;
+}
+
+.verliezer-tekst {
+  color: var(--kleur-fout);
+  margin-top: 0;
+}
+
+/* Stop-formulier midden in het spel */
+#stoppen-formulier {
+  border-top: 1px solid var(--kleur-rand);
+  margin-top: 0.8rem;
+  padding-top: 0.4rem;
+}
+
+#stoppen-formulier .uitleg-tekst {
+  font-size: 0.85rem;
+  color: #555;
+  margin: 0.3rem 0 1rem 0;
 }
 
 /* Uitleg-tab */

@@ -110,6 +110,9 @@
         <button type="submit" class="knop knop-secundair">+ Toevoegen</button>
       </form>
 
+      <label for="invoer-doelpunten">Spelen tot hoeveel punten?</label>
+      <input type="number" id="invoer-doelpunten" min="1" step="1" inputmode="numeric" autocomplete="off" value="100">
+
       <button id="knop-start-spel" class="knop knop-primair" disabled>Start spel</button>
       <p id="setup-foutmelding" class="foutmelding" hidden></p>
     </section>
@@ -119,6 +122,7 @@
 
       <div class="scorebord-kaart">
         <h2>Stand</h2>
+        <p id="doel-info" class="deler-info"></p>
         <table id="scorebord-tabel" class="scorebord-tabel">
           <thead>
             <tr><th class="kolom-positie">#</th><th>Speler</th><th>Punten</th></tr>
@@ -154,6 +158,23 @@
 
         <button id="knop-ronde-verwerken" class="knop knop-primair">Ronde verwerken</button>
         <button id="knop-ronde-ongedaan" class="knop knop-tekst" disabled>Vorige ronde ongedaan maken</button>
+        <button id="knop-spel-stoppen" class="knop knop-tekst" type="button">Spel stoppen</button>
+
+        <div id="stoppen-formulier" hidden>
+          <p class="uitleg-tekst">Hoe wil je stoppen?</p>
+          <button id="knop-vervroegd-eindigen" class="knop knop-primair" type="button">Spel vervroegd eindigen</button>
+          <p class="uitleg-tekst">De stand van nu telt: je ziet de winnaar en de verliezer, en het potje wordt opgeslagen in de statistieken.</p>
+
+          <button id="knop-afkappen" class="knop knop-gevaar" type="button">Spel afkappen</button>
+          <p class="uitleg-tekst">Het potje verdwijnt volledig. Geen winnaar, niets in de statistieken.</p>
+
+          <div id="afkappen-bevestiging" hidden>
+            <p class="foutmelding">Weet je het zeker? Alle punten van dit potje verdwijnen en dit kun je niet terugdraaien.</p>
+            <button id="knop-afkappen-bevestigen" class="knop knop-gevaar" type="button">Ja, afkappen</button>
+          </div>
+
+          <button id="knop-stoppen-annuleren" class="knop knop-tekst" type="button">Nee, verder spelen</button>
+        </div>
       </div>
 
     </section>
@@ -162,6 +183,7 @@
     <section id="scherm-gameover" class="scherm" hidden>
       <h2>Spel afgelopen! 🎉</h2>
       <p id="winnaar-tekst" class="winnaar-tekst"></p>
+      <p id="verliezer-tekst" class="verliezer-tekst"></p>
       <p id="rondes-gespeeld-tekst" class="uitleg-tekst"></p>
       <table id="eindstand-tabel" class="scorebord-tabel">
         <thead><tr><th>Speler</th><th>Eindtotaal</th><th>Rondes met 0 punten</th></tr></thead>
@@ -265,7 +287,8 @@
     <p>Op het eindscherm en in de statistieken zie je hoeveel rondes je 0 punten had. Dat is dus niet precies hetzelfde als hoe vaak jij zelf "Sjoerd" riep — je kunt ook 0 krijgen doordat iemand anders te vroeg riep.</p>
 
     <h3>Einde van het spel</h3>
-    <p>Je speelt door tot iemand 100 punten of meer heeft. Zodra dat gebeurt, stopt het hele spel direct. De winnaar is de speler met de <strong>laagste</strong> totaalscore.</p>
+    <p>Je speelt door tot iemand de afgesproken grens haalt — standaard 100 punten, maar je kunt bij het opzetten van een spel ook 50, 60 of iets anders instellen. Zodra iemand die grens haalt, stopt het hele spel direct. De winnaar is de speler met de <strong>laagste</strong> totaalscore.</p>
+    <p>Moet je eerder stoppen? Met "Spel stoppen" kies je tussen <strong>vervroegd eindigen</strong> (de stand van nu telt, het potje komt in de statistieken) en <strong>afkappen</strong> (het potje verdwijnt volledig).</p>
 
     <h3>Wie deelt?</h3>
     <p>Degene met de hoogste punten moet de volgende ronde schudden en delen. De speler links van de deler begint. Er ligt altijd één kaart open op tafel, ook bij de allereerste ronde.</p>

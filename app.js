@@ -6,8 +6,11 @@ let spelers = [];         // [{ naam, totaal, aantalKeerNul }] tijdens een lopen
 let ronde = 1;
 let scorehouder = null;   // naam van de speler die verloor in ronde 1
 let rondeSnapshots = [];  // kopieën van de status vóór elke ronde, voor "ongedaan maken"
+let doelPunten = 100;     // bij hoeveel punten het spel stopt; per spel in te stellen
 
+const STANDAARD_DOELPUNTEN = 100;
 const LAATSTE_SPELERS_KEY = "sjoerdLaatsteSpelers"; // onthoudt de spelerslijst van het vorige spel
+const LAATSTE_DOELPUNTEN_KEY = "sjoerdLaatsteDoelpunten"; // onthoudt de grens van het vorige spel
 const MIJN_NAAM_KEY = "sjoerdMijnNaam";             // eigen naam, voor persoonlijke statistieken
 const MIJN_GROEPEN_KEY = "sjoerdMijnGroepen";       // groepen die op dit toestel gebruikt zijn: [{code, naam}]
 
@@ -82,9 +85,11 @@ const formSpelerToevoegen = el("form-speler-toevoegen");
 const invoerSpelernaam = el("invoer-spelernaam");
 const knopStartSpel = el("knop-start-spel");
 const knopVorigeSpelers = el("knop-vorige-spelers");
+const invoerDoelpunten = el("invoer-doelpunten");
 const setupFoutmelding = el("setup-foutmelding");
 
 const scorebordBody = el("scorebord-body");
+const doelInfo = el("doel-info");
 const delerInfo = el("deler-info");
 const scorehouderInfo = el("scorehouder-info");
 const syncInfo = el("sync-info");
@@ -103,7 +108,16 @@ const rondeFoutmelding = el("ronde-foutmelding");
 const knopRondeVerwerken = el("knop-ronde-verwerken");
 const knopRondeOngedaan = el("knop-ronde-ongedaan");
 
+const knopSpelStoppen = el("knop-spel-stoppen");
+const stoppenFormulier = el("stoppen-formulier");
+const knopVervroegdEindigen = el("knop-vervroegd-eindigen");
+const knopAfkappen = el("knop-afkappen");
+const afkappenBevestiging = el("afkappen-bevestiging");
+const knopAfkappenBevestigen = el("knop-afkappen-bevestigen");
+const knopStoppenAnnuleren = el("knop-stoppen-annuleren");
+
 const winnaarTekst = el("winnaar-tekst");
+const verliezerTekst = el("verliezer-tekst");
 const rondesGespeeldTekst = el("rondes-gespeeld-tekst");
 const eindstandBody = el("eindstand-body");
 const knopNieuwSpel = el("knop-nieuw-spel");
@@ -298,7 +312,7 @@ knopMijnNaamOpslaan.addEventListener("click", () => {
 async function haalLopendSpelOp(groepcode) {
   const { data, error } = await supabaseClient
     .from("lopende_potjes")
-    .select("ronde, scorehouder, spelers, bijgewerkt_op")
+    .select("ronde, scorehouder, spelers, doel_punten, bijgewerkt_op")
     .eq("groepcode", groepcode)
     .maybeSingle();
 
@@ -318,7 +332,8 @@ function tijdGeleden(isoTekst) {
 
 function toonLopendSpelScherm(lopend) {
   lopendSpelInfo.textContent =
-    `In deze groep loopt een spel bij ronde ${lopend.ronde} — laatst bijgewerkt ${tijdGeleden(lopend.bijgewerkt_op)}.`;
+    `In deze groep loopt een spel bij ronde ${lopend.ronde}, tot ${lopend.doel_punten || STANDAARD_DOELPUNTEN} punten — ` +
+    `laatst bijgewerkt ${tijdGeleden(lopend.bijgewerkt_op)}.`;
 
   lopendSpelBody.innerHTML = "";
   [...lopend.spelers]
@@ -341,6 +356,7 @@ function neemLopendSpelOver(lopend) {
   }));
   ronde = lopend.ronde;
   scorehouder = lopend.scorehouder;
+  doelPunten = lopend.doel_punten || STANDAARD_DOELPUNTEN; // ouder spel zonder grens: terug naar 100
   rondeSnapshots = []; // de rondes van de andere telefoon kunnen we niet ongedaan maken
 
   // Namen ook lokaal onthouden, zodat "vorige spelers ophalen" hier straks werkt
@@ -349,6 +365,7 @@ function neemLopendSpelOver(lopend) {
   schermLopendSpel.hidden = true;
   schermGameover.hidden = true;
   inkopenFormulier.hidden = true;
+  stoppenFormulier.hidden = true;
   schermSpel.hidden = false;
 
   renderScorebord();
@@ -370,6 +387,7 @@ async function syncLopendSpel() {
     ronde,
     scorehouder,
     spelers,
+    doel_punten: doelPunten,
     bijgewerkt_op: new Date().toISOString(),
   });
 
@@ -431,7 +449,18 @@ formSpelerToevoegen.addEventListener("submit", (e) => {
 });
 
 knopStartSpel.addEventListener("click", () => {
+  setupFoutmelding.hidden = true;
+
+  const ingevuldDoel = Number(invoerDoelpunten.value.trim());
+  if (!Number.isInteger(ingevuldDoel) || ingevuldDoel < 1) {
+    setupFoutmelding.textContent = "Vul in tot hoeveel punten jullie spelen (een heel getal van 1 of hoger).";
+    setupFoutmelding.hidden = false;
+    return;
+  }
+  doelPunten = ingevuldDoel;
+
   localStorage.setItem(LAATSTE_SPELERS_KEY, JSON.stringify(setupNamen));
+  localStorage.setItem(LAATSTE_DOELPUNTEN_KEY, String(doelPunten));
 
   spelers = setupNamen.map((naam) => ({ naam, totaal: 0, aantalKeerNul: 0 }));
   ronde = 1;
@@ -441,6 +470,7 @@ knopStartSpel.addEventListener("click", () => {
   schermSetup.hidden = true;
   schermGameover.hidden = true;
   inkopenFormulier.hidden = true;
+  stoppenFormulier.hidden = true;
   syncInfo.hidden = true;
   schermSpel.hidden = false;
 
@@ -451,6 +481,7 @@ knopStartSpel.addEventListener("click", () => {
 
 // ===== Scorebord weergeven =====
 function renderScorebord() {
+  doelInfo.textContent = `Spelen tot ${doelPunten} punten.`;
   scorebordBody.innerHTML = "";
 
   // Weergave op stand (laagste = beste). De array `spelers` zelf blijft in
@@ -545,7 +576,7 @@ knopInkopenBevestigen.addEventListener("click", () => {
   inkopenFormulier.hidden = true;
   invoerInkoperNaam.value = "";
 
-  if (punten >= 100) {
+  if (punten >= doelPunten) {
     toonSpelAfgelopen();
     return;
   }
@@ -636,7 +667,7 @@ knopRondeVerwerken.addEventListener("click", () => {
 
   ronde += 1;
 
-  const speelKlaar = spelers.some((s) => s.totaal >= 100);
+  const speelKlaar = spelers.some((s) => s.totaal >= doelPunten);
   if (speelKlaar) {
     toonSpelAfgelopen();
   } else {
@@ -646,23 +677,74 @@ knopRondeVerwerken.addEventListener("click", () => {
   }
 });
 
+// ===== Spel eerder stoppen: vervroegd eindigen of afkappen =====
+knopSpelStoppen.addEventListener("click", () => {
+  afkappenBevestiging.hidden = true;
+  stoppenFormulier.hidden = false;
+});
+
+knopStoppenAnnuleren.addEventListener("click", () => {
+  stoppenFormulier.hidden = true;
+  afkappenBevestiging.hidden = true;
+});
+
+// Vervroegd eindigen: de stand van nu telt gewoon mee, inclusief statistieken
+knopVervroegdEindigen.addEventListener("click", () => {
+  if (ronde === 1) {
+    rondeFoutmelding.textContent =
+      "Er is nog geen enkele ronde gespeeld, dus er valt niets op te slaan. Gebruik \"Spel afkappen\" als je toch wilt stoppen.";
+    rondeFoutmelding.hidden = false;
+    return;
+  }
+  stoppenFormulier.hidden = true;
+  toonSpelAfgelopen();
+});
+
+// Afkappen: potje verdwijnt volledig, dus eerst om bevestiging vragen
+knopAfkappen.addEventListener("click", () => {
+  afkappenBevestiging.hidden = false;
+});
+
+knopAfkappenBevestigen.addEventListener("click", () => {
+  if (groepActief) verwijderLopendSpel(groepActief.code);
+
+  spelers = [];
+  ronde = 1;
+  scorehouder = null;
+  rondeSnapshots = [];
+  groepActief = null;
+
+  stoppenFormulier.hidden = true;
+  afkappenBevestiging.hidden = true;
+  inkopenFormulier.hidden = true;
+  syncInfo.hidden = true;
+  schermSpel.hidden = true;
+  schermModus.hidden = false;
+});
+
 // ===== Spel afgelopen =====
 function toonSpelAfgelopen() {
   const gesorteerd = [...spelers].sort((a, b) => a.totaal - b.totaal);
   const winnaar = gesorteerd[0];
   const gespeeldeRondes = ronde - 1;
 
+  const verliezer = gesorteerd[gesorteerd.length - 1];
+
   schermSpel.hidden = true;
   schermGameover.hidden = false;
   inkopenFormulier.hidden = true;
+  stoppenFormulier.hidden = true;
 
   winnaarTekst.textContent = `${winnaar.naam} wint met ${winnaar.totaal} punten!`;
+  verliezerTekst.textContent = `Poedelprijs voor ${verliezer.naam} met ${verliezer.totaal} punten.`;
+  verliezerTekst.hidden = spelers.length < 2;
   rondesGespeeldTekst.textContent = `Rondes gespeeld: ${gespeeldeRondes}`;
 
   eindstandBody.innerHTML = "";
   gesorteerd.forEach((speler) => {
     const tr = document.createElement("tr");
     if (speler.naam === winnaar.naam) tr.classList.add("rij-winnaar");
+    if (spelers.length > 1 && speler.naam === verliezer.naam) tr.classList.add("rij-verliezer");
     tr.innerHTML = `<td>${speler.naam}</td><td>${speler.totaal}</td><td>${speler.aantalKeerNul}</td>`;
     eindstandBody.appendChild(tr);
   });
@@ -919,6 +1001,8 @@ function renderLaatstePotjes(potjes) {
 }
 
 // ===== Start =====
+// Grens van het vorige spel voorstellen, zodat je die niet elke keer opnieuw instelt
+invoerDoelpunten.value = localStorage.getItem(LAATSTE_DOELPUNTEN_KEY) || String(STANDAARD_DOELPUNTEN);
 renderSpelerslijst();
 
 // Service worker registreren zodat de app offline werkt en installeerbaar is
