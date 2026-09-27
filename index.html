@@ -99,10 +99,17 @@
     <section id="scherm-setup" class="scherm" hidden>
       <h2>Nieuw spel</h2>
       <p id="actieve-groep-info" class="uitleg-tekst" hidden></p>
-      <p class="uitleg-tekst">Voer de namen van de spelers in (minimaal 2).</p>
+
+      <div id="groep-namen-blok" hidden>
+        <p class="uitleg-tekst">Wie doen er deze keer mee? De spelers van het vorige potje staan alvast aan.</p>
+        <div id="groep-namen-keuze" class="naam-keuzelijst"></div>
+      </div>
+
+      <p id="setup-uitleg" class="uitleg-tekst">Voer de namen van de spelers in (minimaal 2).</p>
 
       <button id="knop-vorige-spelers" class="knop knop-secundair knop-volledig" type="button" hidden>Vorige spelers ophalen</button>
 
+      <p id="volgorde-uitleg" class="uitleg-tekst" hidden>Zet ze met de pijltjes in de volgorde waarin jullie aan tafel zitten — daar rekent de app mee wie er deelt en wie begint.</p>
       <ul id="spelerslijst" class="spelerslijst"></ul>
 
       <form id="form-speler-toevoegen" class="rij-formulier">
@@ -115,6 +122,7 @@
 
       <button id="knop-start-spel" class="knop knop-primair" disabled>Start spel</button>
       <p id="setup-foutmelding" class="foutmelding" hidden></p>
+      <button id="knop-setup-terug" class="knop knop-tekst" type="button">← Terug</button>
     </section>
 
     <!-- SCHERM 2: scorebord + ronde invoeren -->

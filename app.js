@@ -1,7 +1,8 @@
 // ===== Sjoerd scorebord — spellogica =====
 
 // --- Status van de app (in het geheugen, niet opgeslagen tussen ronden) ---
-let setupNamen = [];      // namen die op het setup-scherm staan
+let setupNamen = [];      // namen die op het setup-scherm staan, in zitvolgorde
+let groepNamen = [];      // iedereen die ooit in de actieve groep meespeelde, om uit te kiezen
 let spelers = [];         // [{ naam, totaal, aantalKeerNul }] tijdens een lopend spel
 let ronde = 1;
 let scorehouder = null;   // naam van de speler die verloor in ronde 1
@@ -83,8 +84,13 @@ const statsRecentBody = el("stats-recent-body");
 const spelerslijstEl = el("spelerslijst");
 const formSpelerToevoegen = el("form-speler-toevoegen");
 const invoerSpelernaam = el("invoer-spelernaam");
+const groepNamenBlok = el("groep-namen-blok");
+const groepNamenKeuze = el("groep-namen-keuze");
+const setupUitleg = el("setup-uitleg");
+const volgordeUitleg = el("volgorde-uitleg");
 const knopStartSpel = el("knop-start-spel");
 const knopVorigeSpelers = el("knop-vorige-spelers");
+const knopSetupTerug = el("knop-setup-terug");
 const invoerDoelpunten = el("invoer-doelpunten");
 const setupFoutmelding = el("setup-foutmelding");
 
@@ -166,6 +172,12 @@ function genereerGroepscode() {
 // ===== Scherm 0a: eenmalig of in een groep =====
 knopModusEenmalig.addEventListener("click", () => {
   groepActief = null;
+  // Schoon beginnen: anders blijven de namen van een vorige groep staan
+  setupNamen = [];
+  groepNamen = [];
+  renderGroepNamenKeuze();
+  renderSpelerslijst();
+
   schermModus.hidden = true;
   actieveGroepInfo.hidden = true;
   schermSetup.hidden = false;
@@ -223,9 +235,77 @@ async function gaNaarSetup() {
       toonLopendSpelScherm(lopend);
       return;
     }
+    await laadGroepNamen(groepActief.code);
   }
 
   schermSetup.hidden = false;
+}
+
+// ===== Namen van een groep ophalen om uit te kiezen =====
+// De namen komen uit de potjes van díe groep, dus ook spelers die op de telefoon
+// van een vriend zijn ingevoerd staan erbij.
+async function laadGroepNamen(groepcode) {
+  setupFoutmelding.hidden = true;
+  groepNamen = [];
+  setupNamen = [];
+
+  const { data, error } = await supabaseClient
+    .from("potjes")
+    .select("spelers, datum")
+    .eq("groepcode", groepcode)
+    .order("datum", { ascending: false });
+
+  if (error) {
+    setupFoutmelding.textContent = "Kon de namen van deze groep niet ophalen. Vul ze handmatig in.";
+    setupFoutmelding.hidden = false;
+  } else if (data) {
+    data.forEach((potje) => {
+      (potje.spelers || []).forEach((naam) => {
+        if (!groepNamen.includes(naam)) groepNamen.push(naam);
+      });
+    });
+    // Voorselectie: de opstelling van het laatste potje in deze groep
+    if (data.length > 0) setupNamen = [...(data[0].spelers || [])];
+  }
+
+  renderGroepNamenKeuze();
+  renderSpelerslijst();
+}
+
+function renderGroepNamenKeuze() {
+  groepNamenBlok.hidden = groepNamen.length === 0;
+  setupUitleg.textContent = groepNamen.length === 0
+    ? "Voer de namen van de spelers in (minimaal 2)."
+    : "Speelt er iemand mee die er nog niet bij staat? Voeg die hieronder toe.";
+
+  groepNamenKeuze.innerHTML = "";
+  groepNamen.forEach((naam) => {
+    const label = document.createElement("label");
+    label.className = "naam-keuze";
+
+    const vinkje = document.createElement("input");
+    vinkje.type = "checkbox";
+    vinkje.dataset.naam = naam;
+    vinkje.checked = setupNamen.includes(naam);
+    vinkje.addEventListener("change", () => {
+      if (vinkje.checked) {
+        if (!setupNamen.includes(naam)) setupNamen.push(naam);
+      } else {
+        setupNamen = setupNamen.filter((n) => n !== naam);
+      }
+      renderSpelerslijst();
+    });
+
+    label.appendChild(vinkje);
+    label.appendChild(document.createTextNode(naam));
+    groepNamenKeuze.appendChild(label);
+  });
+}
+
+function syncNaamKeuzevinkjes() {
+  groepNamenKeuze.querySelectorAll("input[type=checkbox]").forEach((vinkje) => {
+    vinkje.checked = setupNamen.includes(vinkje.dataset.naam);
+  });
 }
 
 knopGroepToevoegenTonen.addEventListener("click", () => {
@@ -372,8 +452,9 @@ function neemLopendSpelOver(lopend) {
   renderRondeFormulier();
 }
 
-knopLopendNieuw.addEventListener("click", () => {
+knopLopendNieuw.addEventListener("click", async () => {
   schermLopendSpel.hidden = true;
+  if (groepActief) await laadGroepNamen(groepActief.code);
   schermSetup.hidden = false;
 });
 
@@ -407,23 +488,63 @@ function renderSpelerslijst() {
   spelerslijstEl.innerHTML = "";
   setupNamen.forEach((naam, index) => {
     const li = document.createElement("li");
-    li.innerHTML = `<span>${naam}</span>`;
-    const verwijderKnop = document.createElement("button");
-    verwijderKnop.textContent = "✕";
-    verwijderKnop.setAttribute("aria-label", `Verwijder ${naam}`);
-    verwijderKnop.addEventListener("click", () => {
+    li.innerHTML = `<span>${index + 1}. ${naam}</span>`;
+
+    const knoppen = document.createElement("span");
+    knoppen.className = "speler-knoppen";
+
+    // Pijltjes: de volgorde van deze lijst is de zitvolgorde aan tafel
+    const omhoog = maakLijstKnop("▲", `${naam} naar boven`, index === 0, () => {
+      [setupNamen[index - 1], setupNamen[index]] = [setupNamen[index], setupNamen[index - 1]];
+      renderSpelerslijst();
+    });
+    const omlaag = maakLijstKnop("▼", `${naam} naar beneden`, index === setupNamen.length - 1, () => {
+      [setupNamen[index + 1], setupNamen[index]] = [setupNamen[index], setupNamen[index + 1]];
+      renderSpelerslijst();
+    });
+    const verwijder = maakLijstKnop("✕", `Verwijder ${naam}`, false, () => {
       setupNamen.splice(index, 1);
       renderSpelerslijst();
     });
-    li.appendChild(verwijderKnop);
+    verwijder.classList.add("knop-verwijder");
+
+    knoppen.append(omhoog, omlaag, verwijder);
+    li.appendChild(knoppen);
     spelerslijstEl.appendChild(li);
   });
-  knopStartSpel.disabled = setupNamen.length < 2;
 
-  // "Vorige spelers ophalen" alleen tonen als de lijst nu leeg is en er iets bewaard is
+  knopStartSpel.disabled = setupNamen.length < 2;
+  volgordeUitleg.hidden = setupNamen.length < 2;
+  syncNaamKeuzevinkjes();
+
+  // "Vorige spelers ophalen" hoort alleen bij een spel zonder groep. In een groep
+  // kies je uit de namen van díe groep, anders krijg je spelers uit een andere groep.
   const laatsteSpelers = JSON.parse(localStorage.getItem(LAATSTE_SPELERS_KEY) || "[]");
-  knopVorigeSpelers.hidden = setupNamen.length > 0 || laatsteSpelers.length === 0;
+  knopVorigeSpelers.hidden = Boolean(groepActief) || setupNamen.length > 0 || laatsteSpelers.length === 0;
 }
+
+function maakLijstKnop(tekst, label, uitgeschakeld, bijKlik) {
+  const knop = document.createElement("button");
+  knop.type = "button";
+  knop.textContent = tekst;
+  knop.setAttribute("aria-label", label);
+  knop.disabled = uitgeschakeld;
+  knop.addEventListener("click", bijKlik);
+  return knop;
+}
+
+knopSetupTerug.addEventListener("click", () => {
+  groepActief = null;
+  setupNamen = [];
+  groepNamen = [];
+  setupFoutmelding.hidden = true;
+  renderGroepNamenKeuze();
+  renderSpelerslijst();
+
+  schermSetup.hidden = true;
+  actieveGroepInfo.hidden = true;
+  schermModus.hidden = false;
+});
 
 knopVorigeSpelers.addEventListener("click", () => {
   setupNamen = JSON.parse(localStorage.getItem(LAATSTE_SPELERS_KEY) || "[]");
@@ -443,6 +564,12 @@ formSpelerToevoegen.addEventListener("submit", (e) => {
   }
 
   setupNamen.push(naam);
+  // Nieuwe naam ook meteen in het keuzelijstje van de groep zetten
+  if (groepActief && !groepNamen.includes(naam)) {
+    groepNamen.push(naam);
+    renderGroepNamenKeuze();
+  }
+
   invoerSpelernaam.value = "";
   invoerSpelernaam.focus();
   renderSpelerslijst();
